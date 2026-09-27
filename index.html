@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>מיקומים חיים</title>
+<style>
+  :root{ --bg:#0b1220; --card:#121b2e; --line:#233150; --text:#eaf1ff; --muted:#8ea0c4; --accent:#35d0a0; --danger:#ff6b6b; }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; background:var(--bg); color:var(--text); font-family: Calibri, Arial, sans-serif; }
+  header{ padding:20px 18px 10px; text-align:center; }
+  h1{ margin:0 0 4px; font-size:22px; }
+  .sub{ color:var(--muted); font-size:13px; }
+  #status{ margin:14px auto 0; max-width:480px; padding:10px 14px; border-radius:10px; background:var(--card); border:1px solid var(--line); font-size:13px; color:var(--muted); text-align:center; }
+  #status.err{ color:var(--danger); border-color:var(--danger); }
+  .wrap{ max-width:480px; margin:16px auto; padding:0 14px 30px; }
+  select{ width:100%; padding:10px; border-radius:10px; background:var(--card); border:1px solid var(--line); color:var(--text); font-size:14px; margin-bottom:14px; }
+  .radar-box{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; }
+  svg{ display:block; width:100%; height:auto; }
+  .ring{ fill:none; stroke:var(--line); stroke-width:1; }
+  .axis{ stroke:var(--line); stroke-width:1; }
+  .cardinal{ fill:var(--muted); font-size:10px; text-anchor:middle; }
+  .scale-label{ fill:var(--muted); font-size:9px; text-anchor:middle; }
+  .me-dot{ fill:var(--accent); stroke:var(--bg); stroke-width:2; }
+  .peer-dot{ stroke:var(--bg); stroke-width:2; }
+  ul#list{ list-style:none; margin:14px 0 0; padding:0; }
+  ul#list li{ display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:8px; background:var(--card); border:1px solid var(--line); border-radius:10px; font-size:13px; }
+  .swatch{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; }
+  .name{ flex:1; }
+  .dist{ color:var(--muted); font-size:12px; }
+  .note{ margin-top:16px; font-size:12px; color:var(--muted); line-height:1.6; text-align:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📍 מיקומים חיים</h1>
+  <div class="sub">בחרו מי אתם, ואשרו הרשאת מיקום</div>
+</header>
+
+<div class="wrap">
+  <select id="userSelect"><option value="">בחר משתמש…</option></select>
+  <div id="status">טוען רשימת משתמשים…</div>
+  <div class="radar-box" style="margin-top:14px">
+    <svg id="radar" viewBox="0 0 260 260"></svg>
+  </div>
+  <ul id="list"></ul>
+  <div class="note">כל 3 שניות העמוד מרענן את מיקומי כל המשתמשים הפעילים מהשרת. משתמש שלא שידר מיקום ב-5 הדקות האחרונות נעלם אוטומטית.</div>
+</div>
+
+<script>
+// ⚠️ עדכנו לכתובת ה-Worker שלכם אחרי הפריסה:
+const WORKER_URL = "https://live-locations-worker.YOUR-SUBDOMAIN.workers.dev";
+
+const R = 6371;
+function toRad(d){ return d*Math.PI/180; }
+function haversine(lat1,lon1,lat2,lon2){
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+function flatOffset(lat0,lon0,lat,lon){
+  const dx=(lon-lon0)*Math.cos(toRad(lat0))*111.32;
+  const dy=(lat-lat0)*111.32;
+  return {dx,dy};
+}
+function fmtDist(km){ return km<1 ? Math.round(km*1000)+" מ׳" : km.toFixed(km<10?1:0)+" ק״מ"; }
+function colorFor(seed){
+  let h=0; for(const ch of seed) h=(h*31+ch.charCodeAt(0))>>>0;
+  return `hsl(${h%360} 70% 60%)`;
+}
+
+const statusEl = document.getElementById('status');
+const listEl = document.getElementById('list');
+const svg = document.getElementById('radar');
+const userSelect = document.getElementById('userSelect');
+
+let myUser = localStorage.getItem('liveloc_user') || '';
+let myPos = null;
+
+function setStatus(msg, isErr){ statusEl.textContent = msg; statusEl.classList.toggle('err', !!isErr); }
+
+async function loadUsers(){
+  try{
+    const r = await fetch(WORKER_URL + '/api/users');
+    const data = await r.json();
+    (data.users || []).forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u; opt.textContent = u;
+      userSelect.appendChild(opt);
+    });
+    if (myUser) userSelect.value = myUser;
+    setStatus(myUser ? 'ממתין למיקום…' : 'בחרו משתמש כדי להתחיל');
+  }catch(e){
+    setStatus('שגיאה בטעינת רשימת המשתמשים מהשרת', true);
+  }
+}
+
+userSelect.addEventListener('change', () => {
+  myUser = userSelect.value;
+  localStorage.setItem('liveloc_user', myUser);
+  if (myUser) { setStatus('ממתין למיקום…'); startGeolocation(); }
+});
+
+function startGeolocation(){
+  if (!navigator.geolocation){ setStatus('הדפדפן לא תומך במיקום.', true); return; }
+  navigator.geolocation.watchPosition(
+    pos => {
+      myPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      setStatus('המיקום שלך משודר בזמן אמת.');
+      sendLocation();
+    },
+    err => setStatus('שגיאת מיקום: ' + err.message, true),
+    { enableHighAccuracy:true, maximumAge:5000, timeout:15000 }
+  );
+}
+
+let lastSent = 0;
+async function sendLocation(){
+  if (!myUser || !myPos) return;
+  const now = Date.now();
+  if (now - lastSent < 4000) return;
+  lastSent = now;
+  try{
+    await fetch(WORKER_URL + '/api/location', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ user: myUser, lat: myPos.lat, lon: myPos.lon })
+    });
+  }catch(e){ /* transient, ignore */ }
+}
+
+async function poll(){
+  try{
+    const r = await fetch(WORKER_URL + '/api/locations');
+    const data = await r.json();
+    render(data.locations || {});
+  }catch(e){ /* keep last render */ }
+  setTimeout(poll, 3000);
+}
+
+function render(locations){
+  const cx=130, cy=130, maxR=110;
+  let parts = '';
+  for (const frac of [0.33,0.66,1]) parts += `<circle class="ring" cx="${cx}" cy="${cy}" r="${maxR*frac}"/>`;
+  parts += `<line class="axis" x1="${cx-maxR}" y1="${cy}" x2="${cx+maxR}" y2="${cy}"/>`;
+  parts += `<line class="axis" x1="${cx}" y1="${cy-maxR}" x2="${cx}" y2="${cy+maxR}"/>`;
+  parts += `<text class="cardinal" x="${cx}" y="${cy-maxR-4}">צפון</text>`;
+  parts += `<text class="cardinal" x="${cx}" y="${cy+maxR+12}">דרום</text>`;
+  parts += `<text class="cardinal" x="${cx+maxR+14}" y="${cy+3}">מזרח</text>`;
+  parts += `<text class="cardinal" x="${cx-maxR-14}" y="${cy+3}">מערב</text>`;
+
+  listEl.innerHTML = '';
+  if (!myPos || !myUser){
+    parts += `<text class="scale-label" x="${cx}" y="${cy}">ממתין למיקום שלך…</text>`;
+    svg.innerHTML = parts;
+    return;
+  }
+
+  const others = Object.entries(locations).filter(([name]) => name !== myUser);
+  const dists = others.map(([,p]) => haversine(myPos.lat, myPos.lon, p.lat, p.lon));
+  const scaleKm = Math.max(0.05, ...(dists.length ? dists : [0.05])) * 1.15;
+
+  parts += `<circle class="me-dot" cx="${cx}" cy="${cy}" r="7"/>`;
+  parts += `<text class="scale-label" x="${cx}" y="${cy+20}">${myUser}</text>`;
+
+  others.forEach(([name, p]) => {
+    const off = flatOffset(myPos.lat, myPos.lon, p.lat, p.lon);
+    const px = cx + (off.dx/scaleKm)*maxR;
+    const py = cy - (off.dy/scaleKm)*maxR;
+    parts += `<circle class="peer-dot" cx="${px}" cy="${py}" r="6" fill="${colorFor(name)}"/>`;
+  });
+  svg.innerHTML = parts;
+
+  others
+    .map(([name,p]) => ({name, dist: haversine(myPos.lat, myPos.lon, p.lat, p.lon)}))
+    .sort((a,b) => a.dist - b.dist)
+    .forEach(({name, dist}) => {
+      const li = document.createElement('li');
+      const sw = document.createElement('span'); sw.className='swatch'; sw.style.background = colorFor(name);
+      const nm = document.createElement('span'); nm.className='name'; nm.textContent = name;
+      const ds = document.createElement('span'); ds.className='dist'; ds.textContent = fmtDist(dist);
+      li.append(sw, nm, ds);
+      listEl.appendChild(li);
+    });
+  if (!others.length){
+    const li = document.createElement('li'); li.textContent = 'אין כרגע אף אחד נוסף פעיל.'; listEl.appendChild(li);
+  }
+}
+
+loadUsers();
+if (myUser) startGeolocation();
+poll();
+</script>
+</body>
+</html>
