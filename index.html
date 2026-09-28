@@ -1,195 +1,130 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>מיקומים חיים</title>
 <style>
-  :root{ --bg:#0b1220; --card:#121b2e; --line:#233150; --text:#eaf1ff; --muted:#8ea0c4; --accent:#35d0a0; --danger:#ff6b6b; }
+  :root{ --bg:#0b1220; --card:#121b2e; --line:#233150; --text:#eaf1ff; --muted:#8ea0c4; --accent:#35d0a0; --danger:#ff6b6b; --ok:#22c55e; }
   *{box-sizing:border-box}
-  html,body{height:100%}
-  body{ margin:0; background:var(--bg); color:var(--text); font-family: Calibri, Arial, sans-serif; }
-  header{ padding:20px 18px 10px; text-align:center; }
-  h1{ margin:0 0 4px; font-size:22px; }
-  .sub{ color:var(--muted); font-size:13px; }
-  #status{ margin:14px auto 0; max-width:480px; padding:10px 14px; border-radius:10px; background:var(--card); border:1px solid var(--line); font-size:13px; color:var(--muted); text-align:center; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:Calibri, Arial, sans-serif; transition:background .3s; }
+  body.at-point{ background:#0d3b22; }
+  header{ padding:20px 18px 4px; text-align:center; }
+  h1{ margin:0; font-size:22px; }
+  .wrap{ max-width:480px; margin:12px auto; padding:0 14px 30px; }
+  select,button{ width:100%; padding:12px; border-radius:10px; font-size:15px; font-family:inherit; }
+  select{ background:var(--card); border:1px solid var(--line); color:var(--text); margin-bottom:10px; }
+  button{ background:var(--accent); border:0; color:#04231a; font-weight:700; cursor:pointer; }
+  button:disabled{ opacity:.5; cursor:default; }
+  body.at-point button{ background:var(--ok); color:#fff; }
+  #status{ margin:12px 0; padding:10px 14px; border-radius:10px; background:var(--card); border:1px solid var(--line); font-size:14px; color:var(--muted); text-align:center; }
   #status.err{ color:var(--danger); border-color:var(--danger); }
-  .wrap{ max-width:480px; margin:16px auto; padding:0 14px 30px; }
-  select{ width:100%; padding:10px; border-radius:10px; background:var(--card); border:1px solid var(--line); color:var(--text); font-size:14px; margin-bottom:14px; }
+  #status.ok{ color:#fff; background:var(--ok); border-color:var(--ok); font-weight:700; }
   .radar-box{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; }
   svg{ display:block; width:100%; height:auto; }
-  .ring{ fill:none; stroke:var(--line); stroke-width:1; }
-  .axis{ stroke:var(--line); stroke-width:1; }
-  .cardinal{ fill:var(--muted); font-size:10px; text-anchor:middle; }
-  .scale-label{ fill:var(--muted); font-size:9px; text-anchor:middle; }
-  .me-dot{ fill:var(--accent); stroke:var(--bg); stroke-width:2; }
-  .peer-dot{ stroke:var(--bg); stroke-width:2; }
-  ul#list{ list-style:none; margin:14px 0 0; padding:0; }
-  ul#list li{ display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:8px; background:var(--card); border:1px solid var(--line); border-radius:10px; font-size:13px; }
-  .swatch{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; }
-  .name{ flex:1; }
-  .dist{ color:var(--muted); font-size:12px; }
-  .note{ margin-top:16px; font-size:12px; color:var(--muted); line-height:1.6; text-align:center; }
+  .ring,.axis{ fill:none; stroke:var(--line); }
+  .lbl{ fill:var(--muted); font-size:10px; text-anchor:middle; }
+  ul{ list-style:none; margin:12px 0 0; padding:0; }
+  li{ display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:8px; background:var(--card); border:1px solid var(--line); border-radius:10px; font-size:13px; }
+  .sw{ width:12px; height:12px; border-radius:50%; }
+  .nm{ flex:1; } .ds{ color:var(--muted); font-size:12px; }
 </style>
 </head>
 <body>
-<header>
-  <h1>📍 מיקומים חיים</h1>
-  <div class="sub">בחרו מי אתם, ואשרו הרשאת מיקום</div>
-</header>
-
+<header><h1>📍 מיקומים חיים</h1></header>
 <div class="wrap">
   <select id="userSelect"><option value="">בחר משתמש…</option></select>
-  <div id="status">טוען רשימת משתמשים…</div>
-  <div class="radar-box" style="margin-top:14px">
-    <svg id="radar" viewBox="0 0 260 260"></svg>
-  </div>
+  <button id="sendBtn" disabled>שלח מיקום</button>
+  <div id="status">בחרו משתמש ולחצו על "שלח מיקום"</div>
+  <div class="radar-box"><svg id="radar" viewBox="0 0 260 260"></svg></div>
   <ul id="list"></ul>
-  <div class="note">כל 3 שניות העמוד מרענן את מיקומי כל המשתמשים הפעילים מהשרת. משתמש שלא שידר מיקום ב-5 הדקות האחרונות נעלם אוטומטית.</div>
 </div>
 
 <script>
-// ⚠️ עדכנו לכתובת ה-Worker שלכם אחרי הפריסה:
 const WORKER_URL = "https://kashag.yoav-aram-47.workers.dev";
+const CHECKPOINTS = ["start", "middle"];
 
-const R = 6371;
-function toRad(d){ return d*Math.PI/180; }
-function haversine(lat1,lon1,lat2,lon2){
-  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(a));
-}
-function flatOffset(lat0,lon0,lat,lon){
-  const dx=(lon-lon0)*Math.cos(toRad(lat0))*111.32;
-  const dy=(lat-lat0)*111.32;
-  return {dx,dy};
-}
-function fmtDist(km){ return km<1 ? Math.round(km*1000)+" מ׳" : km.toFixed(km<10?1:0)+" ק״מ"; }
-function colorFor(seed){
-  let h=0; for(const ch of seed) h=(h*31+ch.charCodeAt(0))>>>0;
-  return `hsl(${h%360} 70% 60%)`;
-}
-
-const statusEl = document.getElementById('status');
-const listEl = document.getElementById('list');
-const svg = document.getElementById('radar');
-const userSelect = document.getElementById('userSelect');
-
+const $ = (id) => document.getElementById(id);
+const userSelect = $('userSelect'), sendBtn = $('sendBtn'), statusEl = $('status'), svg = $('radar'), listEl = $('list');
 let myUser = localStorage.getItem('liveloc_user') || '';
 let myPos = null;
 
-function setStatus(msg, isErr){ statusEl.textContent = msg; statusEl.classList.toggle('err', !!isErr); }
+const rad = (d) => d * Math.PI / 180;
+function distKm(a, b, c, d) {
+  const x = Math.sin(rad(c - a) / 2) ** 2 + Math.cos(rad(a)) * Math.cos(rad(c)) * Math.sin(rad(d - b) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(x));
+}
+const fmt = (km) => km < 1 ? Math.round(km * 1000) + " מ׳" : km.toFixed(km < 10 ? 1 : 0) + " ק״מ";
+function colorFor(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 70% 60%)`; }
 
-async function loadUsers(){
-  try{
-    const r = await fetch(WORKER_URL + '/api/users');
-    const data = await r.json();
-    (data.users || []).forEach(u => {
-      const opt = document.createElement('option');
-      opt.value = u; opt.textContent = u;
-      userSelect.appendChild(opt);
-    });
-    if (myUser) userSelect.value = myUser;
-    setStatus(myUser ? 'ממתין למיקום…' : 'בחרו משתמש כדי להתחיל');
-  }catch(e){
-    setStatus('שגיאה בטעינת רשימת המשתמשים מהשרת', true);
-  }
+function setStatus(msg, cls) { statusEl.textContent = msg; statusEl.className = cls || ''; }
+
+async function loadUsers() {
+  try {
+    const data = await (await fetch(WORKER_URL + '/api/users')).json();
+    (data.users || []).forEach(u => userSelect.add(new Option(u, u)));
+    if (myUser) { userSelect.value = myUser; sendBtn.disabled = !userSelect.value; }
+  } catch { setStatus('שגיאה בטעינת רשימת המשתמשים מהשרת', 'err'); }
 }
 
 userSelect.addEventListener('change', () => {
   myUser = userSelect.value;
   localStorage.setItem('liveloc_user', myUser);
-  if (myUser) { setStatus('ממתין למיקום…'); startGeolocation(); }
+  sendBtn.disabled = !myUser;
+  document.body.classList.remove('at-point');
 });
 
-function startGeolocation(){
-  if (!navigator.geolocation){ setStatus('הדפדפן לא תומך במיקום.', true); return; }
-  navigator.geolocation.watchPosition(
-    pos => {
-      myPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-      setStatus('המיקום שלך משודר בזמן אמת.');
-      sendLocation();
-    },
-    err => setStatus('שגיאת מיקום: ' + err.message, true),
-    { enableHighAccuracy:true, maximumAge:5000, timeout:15000 }
-  );
-}
+sendBtn.addEventListener('click', () => {
+  if (!navigator.geolocation) return setStatus('הדפדפן לא תומך במיקום.', 'err');
+  sendBtn.disabled = true;
+  setStatus('מאתר מיקום…');
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    myPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    try {
+      const res = await (await fetch(WORKER_URL + '/api/location', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: myUser, lat: myPos.lat, lon: myPos.lon })
+      })).json();
+      if (res.error) throw new Error(res.error);
+      const near = res.near;
+      document.body.classList.toggle('at-point', !!near);
+      if (near) setStatus(`✅ אתה ב-${near.point} (${near.distance} מ׳) — נרשם ${near.timestamp}`, 'ok');
+      else if (CHECKPOINTS.includes(myUser)) setStatus(`המיקום של ${myUser} עודכן.`);
+      else setStatus('המיקום נשלח. אתה לא בטווח 20 מ׳ מ-start או middle.');
+      const data = await (await fetch(WORKER_URL + '/api/locations')).json();
+      render(data.locations || {});
+    } catch (e) { setStatus('שגיאה בשליחה: ' + e.message, 'err'); }
+    sendBtn.disabled = false;
+  }, (err) => {
+    setStatus(err.code === err.PERMISSION_DENIED ? 'לא ניתנה הרשאת מיקום.' : 'שגיאת מיקום: ' + err.message, 'err');
+    sendBtn.disabled = false;
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+});
 
-let lastSent = 0;
-async function sendLocation(){
-  if (!myUser || !myPos) return;
-  const now = Date.now();
-  if (now - lastSent < 4000) return;
-  lastSent = now;
-  try{
-    await fetch(WORKER_URL + '/api/location', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ user: myUser, lat: myPos.lat, lon: myPos.lon })
-    });
-  }catch(e){ /* transient, ignore */ }
-}
-
-async function poll(){
-  try{
-    const r = await fetch(WORKER_URL + '/api/locations');
-    const data = await r.json();
-    render(data.locations || {});
-  }catch(e){ /* keep last render */ }
-  setTimeout(poll, 3000);
-}
-
-function render(locations){
-  const cx=130, cy=130, maxR=110;
-  let parts = '';
-  for (const frac of [0.33,0.66,1]) parts += `<circle class="ring" cx="${cx}" cy="${cy}" r="${maxR*frac}"/>`;
-  parts += `<line class="axis" x1="${cx-maxR}" y1="${cy}" x2="${cx+maxR}" y2="${cy}"/>`;
-  parts += `<line class="axis" x1="${cx}" y1="${cy-maxR}" x2="${cx}" y2="${cy+maxR}"/>`;
-  parts += `<text class="cardinal" x="${cx}" y="${cy-maxR-4}">צפון</text>`;
-  parts += `<text class="cardinal" x="${cx}" y="${cy+maxR+12}">דרום</text>`;
-  parts += `<text class="cardinal" x="${cx+maxR+14}" y="${cy+3}">מזרח</text>`;
-  parts += `<text class="cardinal" x="${cx-maxR-14}" y="${cy+3}">מערב</text>`;
-
-  listEl.innerHTML = '';
-  if (!myPos || !myUser){
-    parts += `<text class="scale-label" x="${cx}" y="${cy}">ממתין למיקום שלך…</text>`;
-    svg.innerHTML = parts;
-    return;
-  }
-
-  const others = Object.entries(locations).filter(([name]) => name !== myUser);
-  const dists = others.map(([,p]) => haversine(myPos.lat, myPos.lon, p.lat, p.lon));
-  const scaleKm = Math.max(0.05, ...(dists.length ? dists : [0.05])) * 1.15;
-
-  parts += `<circle class="me-dot" cx="${cx}" cy="${cy}" r="7"/>`;
-  parts += `<text class="scale-label" x="${cx}" y="${cy+20}">${myUser}</text>`;
-
-  others.forEach(([name, p]) => {
-    const off = flatOffset(myPos.lat, myPos.lon, p.lat, p.lon);
-    const px = cx + (off.dx/scaleKm)*maxR;
-    const py = cy - (off.dy/scaleKm)*maxR;
-    parts += `<circle class="peer-dot" cx="${px}" cy="${py}" r="6" fill="${colorFor(name)}"/>`;
+function render(locs) {
+  const cx = 130, cy = 130, R = 110;
+  let s = [0.33, 0.66, 1].map(f => `<circle class="ring" cx="${cx}" cy="${cy}" r="${R * f}"/>`).join('');
+  s += `<line class="axis" x1="${cx - R}" y1="${cy}" x2="${cx + R}" y2="${cy}"/><line class="axis" x1="${cx}" y1="${cy - R}" x2="${cx}" y2="${cy + R}"/>`;
+  s += `<text class="lbl" x="${cx}" y="${cy - R - 4}">צפון</text><text class="lbl" x="${cx}" y="${cy + R + 12}">דרום</text>`;
+  s += `<text class="lbl" x="${cx + R + 14}" y="${cy + 3}">מזרח</text><text class="lbl" x="${cx - R - 14}" y="${cy + 3}">מערב</text>`;
+  const others = Object.entries(locs).filter(([n]) => n !== myUser);
+  const scale = Math.max(0.05, ...others.map(([, p]) => distKm(myPos.lat, myPos.lon, p.lat, p.lon))) * 1.15;
+  s += `<circle cx="${cx}" cy="${cy}" r="7" fill="var(--accent)" stroke="var(--bg)" stroke-width="2"/><text class="lbl" x="${cx}" y="${cy + 20}">${myUser}</text>`;
+  others.forEach(([n, p]) => {
+    const dx = (p.lon - myPos.lon) * Math.cos(rad(myPos.lat)) * 111.32, dy = (p.lat - myPos.lat) * 111.32;
+    s += `<circle cx="${cx + dx / scale * R}" cy="${cy - dy / scale * R}" r="6" fill="${colorFor(n)}" stroke="var(--bg)" stroke-width="2"/>`;
   });
-  svg.innerHTML = parts;
-
-  others
-    .map(([name,p]) => ({name, dist: haversine(myPos.lat, myPos.lon, p.lat, p.lon)}))
-    .sort((a,b) => a.dist - b.dist)
-    .forEach(({name, dist}) => {
-      const li = document.createElement('li');
-      const sw = document.createElement('span'); sw.className='swatch'; sw.style.background = colorFor(name);
-      const nm = document.createElement('span'); nm.className='name'; nm.textContent = name;
-      const ds = document.createElement('span'); ds.className='dist'; ds.textContent = fmtDist(dist);
-      li.append(sw, nm, ds);
-      listEl.appendChild(li);
-    });
-  if (!others.length){
-    const li = document.createElement('li'); li.textContent = 'אין כרגע אף אחד נוסף פעיל.'; listEl.appendChild(li);
-  }
+  svg.innerHTML = s;
+  listEl.innerHTML = '';
+  others.map(([n, p]) => [n, distKm(myPos.lat, myPos.lon, p.lat, p.lon)]).sort((a, b) => a[1] - b[1]).forEach(([n, d]) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="sw" style="background:${colorFor(n)}"></span><span class="nm"></span><span class="ds">${fmt(d)}</span>`;
+    li.querySelector('.nm').textContent = n;
+    listEl.appendChild(li);
+  });
 }
 
 loadUsers();
-if (myUser) startGeolocation();
-poll();
 </script>
 </body>
 </html>
