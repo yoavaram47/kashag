@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>תוצאות</title>
+<style>
+  :root{ --bg:#0b1220; --card:#121b2e; --line:#233150; --text:#eaf1ff; --muted:#8ea0c4; --accent:#35d0a0; }
+  *{box-sizing:border-box}
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:Calibri, Arial, sans-serif; }
+  header{ padding:20px 18px 4px; text-align:center; }
+  h1{ margin:0; font-size:22px; }
+  .wrap{ max-width:520px; margin:12px auto; padding:0 14px 30px; }
+  .bar{ display:flex; gap:10px; margin-bottom:12px; }
+  .bar a,.bar button{ flex:1; padding:12px; border-radius:10px; font-size:15px; font-family:inherit; text-align:center; text-decoration:none; }
+  .bar a{ background:var(--card); border:1px solid var(--line); color:var(--text); }
+  .bar button{ background:var(--accent); border:0; color:#04231a; font-weight:700; cursor:pointer; }
+  .user{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; }
+  .top{ display:flex; justify-content:space-between; align-items:baseline; }
+  .name{ font-size:16px; font-weight:700; }
+  .best{ color:var(--accent); font-weight:700; font-size:18px; }
+  .run,.note{ display:flex; justify-content:space-between; font-size:13px; color:var(--muted); padding-top:6px; }
+  .run b{ color:var(--text); }
+  #msg{ text-align:center; color:var(--muted); padding:16px; }
+</style>
+</head>
+<body>
+<header><h1>🏁 תוצאות</h1></header>
+<div class="wrap">
+  <div class="bar"><a href="index.html">חזרה למיקומים</a><button id="refresh">רענן</button></div>
+  <div id="msg">טוען…</div>
+  <div id="out"></div>
+</div>
+<script>
+const WORKER_URL = "https://kashag.yoav-aram-47.workers.dev";
+const fmtDur = (s) => { const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString("he-IL");
+const STATE = { started: "התחיל ריצה — עדיין לא הגיע ל-1", middle: "הגיע ל-1 — עדיין לא חזר ל-0" };
+
+async function load() {
+  const msg = document.getElementById("msg"), out = document.getElementById("out");
+  msg.textContent = "טוען…"; out.innerHTML = "";
+  try {
+    const { results } = await (await fetch(WORKER_URL + "/api/results")).json();
+    const rows = Object.entries(results).map(([name, r]) => ({ name, ...r, best: r.runs.length ? Math.min(...r.runs.map(x => x.seconds)) : null }));
+    rows.sort((a, b) => (a.best ?? Infinity) - (b.best ?? Infinity) || a.name.localeCompare(b.name));
+    msg.textContent = rows.length ? "" : "אין עדיין נתונים.";
+    for (const r of rows) {
+      const d = document.createElement("div"); d.className = "user";
+      const top = document.createElement("div"); top.className = "top";
+      const n = document.createElement("span"); n.className = "name"; n.textContent = r.name;
+      const b = document.createElement("span"); b.className = "best"; b.textContent = r.best == null ? "—" : fmtDur(r.best);
+      top.append(n, b); d.append(top);
+      r.runs.forEach((x, i) => {
+        const row = document.createElement("div"); row.className = "run";
+        row.innerHTML = `<span>ריצה ${i + 1}: ${fmtTime(x.start)} ← ${fmtTime(x.middle)} ← ${fmtTime(x.end)}</span><b>${fmtDur(x.seconds)}</b>`;
+        d.append(row);
+      });
+      if (STATE[r.state]) { const s = document.createElement("div"); s.className = "note"; s.textContent = STATE[r.state]; d.append(s); }
+      if (!r.runs.length && !STATE[r.state]) { const s = document.createElement("div"); s.className = "note"; s.textContent = "אין ריצה שלמה עדיין"; d.append(s); }
+      out.append(d);
+    }
+  } catch (e) { msg.textContent = "שגיאה בטעינת התוצאות: " + e.message; }
+}
+document.getElementById("refresh").addEventListener("click", load);
+load();
+</script>
+</body>
+</html>
