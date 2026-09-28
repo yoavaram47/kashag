@@ -3,128 +3,1066 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
 <title>מיקומים חיים</title>
+
+<!-- Leaflet -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
 <style>
-  :root{ --bg:#0b1220; --card:#121b2e; --line:#233150; --text:#eaf1ff; --muted:#8ea0c4; --accent:#35d0a0; --danger:#ff6b6b; --ok:#22c55e; }
+  :root{
+    --bg:#0b1220;
+    --card:#121b2e;
+    --line:#233150;
+    --text:#eaf1ff;
+    --muted:#8ea0c4;
+    --accent:#35d0a0;
+    --danger:#ff6b6b;
+    --ok:#22c55e;
+    --warn:#f59e0b;
+  }
+
   *{box-sizing:border-box}
-  body{ margin:0; background:var(--bg); color:var(--text); font-family:Calibri, Arial, sans-serif; transition:background .3s; }
-  body.at-point{ background:#0d3b22; }
-  header{ padding:20px 18px 4px; text-align:center; }
-  h1{ margin:0; font-size:22px; }
-  .wrap{ max-width:480px; margin:12px auto; padding:0 14px 30px; }
-  select,button{ width:100%; padding:12px; border-radius:10px; font-size:15px; font-family:inherit; }
-  select{ background:var(--card); border:1px solid var(--line); color:var(--text); margin-bottom:10px; }
-  button{ background:var(--accent); border:0; color:#04231a; font-weight:700; cursor:pointer; }
-  button:disabled{ opacity:.5; cursor:default; }
-  body.at-point button{ background:var(--ok); color:#fff; }
-  #status{ margin:12px 0; padding:10px 14px; border-radius:10px; background:var(--card); border:1px solid var(--line); font-size:14px; color:var(--muted); text-align:center; }
-  #status.err{ color:var(--danger); border-color:var(--danger); }
-  #status.ok{ color:#fff; background:var(--ok); border-color:var(--ok); font-weight:700; }
-  .radar-box{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:12px; }
-  svg{ display:block; width:100%; height:auto; }
-  .ring,.axis{ fill:none; stroke:var(--line); }
-  .lbl{ fill:var(--muted); font-size:10px; text-anchor:middle; }
-  ul{ list-style:none; margin:12px 0 0; padding:0; }
-  li{ display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:8px; background:var(--card); border:1px solid var(--line); border-radius:10px; font-size:13px; }
-  .sw{ width:12px; height:12px; border-radius:50%; }
-  .nm{ flex:1; } .ds{ color:var(--muted); font-size:12px; }
+
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:Calibri, Arial, sans-serif;
+    transition:background .3s;
+  }
+
+  body.at-point{
+    background:#0d3b22;
+  }
+
+  header{
+    padding:20px 18px 4px;
+    text-align:center;
+  }
+
+  h1{
+    margin:0;
+    font-size:22px;
+  }
+
+  .results-link{
+    color:var(--accent);
+    font-size:14px;
+    text-decoration:none;
+  }
+
+  .wrap{
+    max-width:600px;
+    margin:12px auto;
+    padding:0 14px 30px;
+  }
+
+  select,
+  button{
+    width:100%;
+    padding:12px;
+    border-radius:10px;
+    font-size:15px;
+    font-family:inherit;
+  }
+
+  select{
+    background:var(--card);
+    border:1px solid var(--line);
+    color:var(--text);
+    margin-bottom:10px;
+  }
+
+  button{
+    background:var(--accent);
+    border:0;
+    color:#04231a;
+    font-weight:700;
+    cursor:pointer;
+  }
+
+  button:disabled{
+    opacity:.5;
+    cursor:default;
+  }
+
+  body.at-point button{
+    background:var(--ok);
+    color:#fff;
+  }
+
+  #status{
+    margin:12px 0;
+    padding:10px 14px;
+    border-radius:10px;
+    background:var(--card);
+    border:1px solid var(--line);
+    font-size:14px;
+    color:var(--muted);
+    text-align:center;
+    line-height:1.5;
+  }
+
+  #status.err{
+    color:var(--danger);
+    border-color:var(--danger);
+  }
+
+  #status.warn{
+    color:var(--warn);
+    border-color:var(--warn);
+  }
+
+  #status.ok{
+    color:#fff;
+    background:var(--ok);
+    border-color:var(--ok);
+    font-weight:700;
+  }
+
+  /* Accuracy */
+  .accuracy-box{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+    margin-bottom:12px;
+  }
+
+  .accuracy-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:9px;
+  }
+
+  .accuracy-title{
+    font-size:14px;
+    font-weight:700;
+  }
+
+  .accuracy-value{
+    font-size:14px;
+    font-weight:700;
+  }
+
+  .accuracy-value.good{
+    color:var(--ok);
+  }
+
+  .accuracy-value.bad{
+    color:var(--danger);
+  }
+
+  .meter{
+    height:12px;
+    background:#202c45;
+    border-radius:99px;
+    overflow:hidden;
+    position:relative;
+  }
+
+  .meter-fill{
+    height:100%;
+    width:0%;
+    background:var(--danger);
+    transition:width .25s, background .25s;
+  }
+
+  .meter-fill.good{
+    background:var(--ok);
+  }
+
+  .meter-labels{
+    display:flex;
+    justify-content:space-between;
+    color:var(--muted);
+    font-size:11px;
+    margin-top:5px;
+  }
+
+  .accuracy-note{
+    margin-top:8px;
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.4;
+  }
+
+  /* Map */
+  .map-box{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    overflow:hidden;
+  }
+
+  #map{
+    width:100%;
+    height:480px;
+  }
+
+  .leaflet-container{
+    font-family:Calibri, Arial, sans-serif;
+  }
+
+  .my-marker{
+    width:18px;
+    height:18px;
+    background:#35d0a0;
+    border:3px solid #fff;
+    border-radius:50%;
+    box-shadow:0 0 0 3px rgba(53,208,160,.35);
+  }
+
+  .other-marker{
+    width:16px;
+    height:16px;
+    border:3px solid #fff;
+    border-radius:50%;
+    box-shadow:0 1px 6px rgba(0,0,0,.5);
+  }
+
+  /* Users list */
+  ul{
+    list-style:none;
+    margin:12px 0 0;
+    padding:0;
+  }
+
+  li{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:11px 12px;
+    margin-bottom:8px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    font-size:13px;
+  }
+
+  .sw{
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    flex:none;
+  }
+
+  .nm{
+    flex:1;
+  }
+
+  .ds{
+    color:var(--muted);
+    font-size:12px;
+  }
+
+  .empty{
+    justify-content:center;
+    color:var(--muted);
+  }
+
+  /* Leaflet popup RTL */
+  .leaflet-popup-content{
+    direction:rtl;
+    text-align:right;
+    font-family:Calibri, Arial, sans-serif;
+    line-height:1.5;
+  }
 </style>
 </head>
+
 <body>
-<header><h1>📍 מיקומים חיים</h1><a href="results.html" style="color:var(--accent);font-size:14px">🏁 לתוצאות</a></header>
+
+<header>
+  <h1>📍 מיקומים חיים</h1>
+  <a class="results-link" href="results.html">🏁 לתוצאות</a>
+</header>
+
 <div class="wrap">
-  <select id="userSelect"><option value="">בחר משתמש…</option></select>
-  <button id="sendBtn" disabled>שלח מיקום</button>
-  <div id="status">בחרו משתמש ולחצו על "שלח מיקום"</div>
-  <div class="radar-box"><svg id="radar" viewBox="0 0 260 260"></svg></div>
+
+  <select id="userSelect">
+    <option value="">בחר משתמש…</option>
+  </select>
+
+  <button id="sendBtn" disabled>
+    בחר משתמש תחילה
+  </button>
+
+  <div id="status">
+    בחרו משתמש כדי להתחיל לקבל מיקום מדויק.
+  </div>
+
+  <!-- Accuracy -->
+  <div class="accuracy-box">
+    <div class="accuracy-head">
+      <div class="accuracy-title">🎯 מד דיוק</div>
+      <div id="accuracyValue" class="accuracy-value">
+        אין נתוני מיקום
+      </div>
+    </div>
+
+    <div class="meter">
+      <div id="accuracyBar" class="meter-fill"></div>
+    </div>
+
+    <div class="meter-labels">
+      <span>דיוק גבוה</span>
+      <span>דרוש: ≤20 מ׳</span>
+      <span>נמוך</span>
+    </div>
+
+    <div class="accuracy-note">
+      השליחה והצגת מיקומי המשתמשים זמינות רק כאשר
+      הדיוק שהדפדפן מדווח עליו הוא 20 מטר ומטה.
+    </div>
+  </div>
+
+  <!-- Real map -->
+  <div class="map-box">
+    <div id="map"></div>
+  </div>
+
   <ul id="list"></ul>
+
 </div>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 const WORKER_URL = "https://kashag.yoav-aram-47.workers.dev";
 const CHECKPOINTS = ["start", "middle"];
 
+const ACCURACY_LIMIT_M = 20;
+const REFRESH_INTERVAL_MS = 5000;
+
 const $ = (id) => document.getElementById(id);
-const userSelect = $('userSelect'), sendBtn = $('sendBtn'), statusEl = $('status'), svg = $('radar'), listEl = $('list');
-let myUser = localStorage.getItem('liveloc_user') || '';
+
+const userSelect = $("userSelect");
+const sendBtn = $("sendBtn");
+const statusEl = $("status");
+const accuracyValueEl = $("accuracyValue");
+const accuracyBarEl = $("accuracyBar");
+const listEl = $("list");
+
+let myUser = localStorage.getItem("liveloc_user") || "";
 let myPos = null;
+let watchId = null;
+
+let map = null;
+let myMarker = null;
+let accuracyCircle = null;
+
+const otherMarkers = new Map();
+let hasCenteredOnMe = false;
+
+/* -------------------------------------------------- */
+/* Helpers */
+/* -------------------------------------------------- */
 
 const rad = (d) => d * Math.PI / 180;
-function distKm(a, b, c, d) {
-  const x = Math.sin(rad(c - a) / 2) ** 2 + Math.cos(rad(a)) * Math.cos(rad(c)) * Math.sin(rad(d - b) / 2) ** 2;
+
+function distKm(lat1, lon1, lat2, lon2) {
+  const x =
+    Math.sin(rad(lat2 - lat1) / 2) ** 2 +
+    Math.cos(rad(lat1)) *
+    Math.cos(rad(lat2)) *
+    Math.sin(rad(lon2 - lon1) / 2) ** 2;
+
   return 2 * 6371 * Math.asin(Math.sqrt(x));
 }
-const fmt = (km) => km < 1 ? Math.round(km * 1000) + " מ׳" : km.toFixed(km < 10 ? 1 : 0) + " ק״מ";
-function colorFor(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 70% 60%)`; }
 
-function setStatus(msg, cls) { statusEl.textContent = msg; statusEl.className = cls || ''; }
+const fmt = (km) =>
+  km < 1
+    ? Math.round(km * 1000) + " מ׳"
+    : km.toFixed(km < 10 ? 1 : 0) + " ק״מ";
+
+function colorFor(s) {
+  let h = 0;
+
+  for (const c of s) {
+    h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  }
+
+  return `hsl(${h % 360} 70% 60%)`;
+}
+
+function setStatus(msg, cls = "") {
+  statusEl.textContent = msg;
+  statusEl.className = cls;
+}
+
+function isAccuracyGood() {
+  return !!myPos &&
+         Number.isFinite(myPos.accuracy) &&
+         myPos.accuracy <= ACCURACY_LIMIT_M;
+}
+
+/* -------------------------------------------------- */
+/* Map */
+/* -------------------------------------------------- */
+
+function initMap() {
+  map = L.map("map", {
+    zoomControl: true,
+    attributionControl: true
+  }).setView([31.8, 35.0], 8);
+
+  L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+      maxZoom: 19,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+    }
+  ).addTo(map);
+}
+
+function makeMyIcon() {
+  return L.divIcon({
+    className: "",
+    html: '<div class="my-marker"></div>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -10]
+  });
+}
+
+function makeOtherIcon(name) {
+  return L.divIcon({
+    className: "",
+    html: `
+      <div
+        class="other-marker"
+        style="background:${colorFor(name)}"
+      ></div>
+    `,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -9]
+  });
+}
+
+function updateMyMarker() {
+  if (!map || !myPos) return;
+
+  const latlng = [myPos.lat, myPos.lon];
+
+  if (!myMarker) {
+    myMarker = L.marker(latlng, {
+      icon: makeMyIcon(),
+      zIndexOffset: 1000
+    }).addTo(map);
+
+    myMarker.bindPopup("");
+  } else {
+    myMarker.setLatLng(latlng);
+  }
+
+  myMarker.setPopupContent(`
+    <strong>📍 ${escapeHtml(myUser)}</strong><br>
+    הדיוק: ±${Math.round(myPos.accuracy)} מ׳
+  `);
+
+  if (!accuracyCircle) {
+    accuracyCircle = L.circle(latlng, {
+      radius: myPos.accuracy,
+      color: "#35d0a0",
+      fillColor: "#35d0a0",
+      fillOpacity: 0.10,
+      weight: 2
+    }).addTo(map);
+  } else {
+    accuracyCircle.setLatLng(latlng);
+    accuracyCircle.setRadius(myPos.accuracy);
+  }
+
+  if (!hasCenteredOnMe) {
+    map.setView(latlng, 17);
+    hasCenteredOnMe = true;
+  }
+}
+
+function clearOtherMarkers() {
+  for (const marker of otherMarkers.values()) {
+    map.removeLayer(marker);
+  }
+
+  otherMarkers.clear();
+  listEl.innerHTML = "";
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+/* -------------------------------------------------- */
+/* Accuracy UI */
+/* -------------------------------------------------- */
+
+function updateAccuracyUI() {
+  if (!myPos) {
+    accuracyValueEl.textContent = "אין נתוני מיקום";
+    accuracyValueEl.className = "accuracy-value";
+
+    accuracyBarEl.style.width = "0%";
+    accuracyBarEl.className = "meter-fill";
+
+    sendBtn.disabled = true;
+
+    return;
+  }
+
+  const accuracy = myPos.accuracy;
+  const rounded = Math.round(accuracy);
+
+  accuracyValueEl.textContent = `±${rounded} מ׳`;
+
+  if (accuracy <= ACCURACY_LIMIT_M) {
+    accuracyValueEl.className = "accuracy-value good";
+
+    /*
+      20m = 100%
+      10m = 100%
+      5m  = 100%
+      מעל 20m יורד בהדרגה
+    */
+    const barPercent =
+      accuracy <= ACCURACY_LIMIT_M
+        ? 100
+        : Math.max(
+            0,
+            Math.min(100, (ACCURACY_LIMIT_M / accuracy) * 100)
+          );
+
+    accuracyBarEl.style.width = `${barPercent}%`;
+    accuracyBarEl.className = "meter-fill good";
+
+    sendBtn.disabled = !myUser;
+
+  } else {
+    accuracyValueEl.className = "accuracy-value bad";
+
+    const barPercent = Math.max(
+      0,
+      Math.min(100, (ACCURACY_LIMIT_M / accuracy) * 100)
+    );
+
+    accuracyBarEl.style.width = `${barPercent}%`;
+    accuracyBarEl.className = "meter-fill";
+
+    sendBtn.disabled = true;
+
+    /*
+      ברגע שהדיוק גרוע מדי:
+      לא מציגים לאחרים את מיקומיהם.
+    */
+    clearOtherMarkers();
+
+    document.body.classList.remove("at-point");
+
+    setStatus(
+      `⚠️ דיוק המיקום כרגע ±${rounded} מ׳. נדרש דיוק של 20 מ׳ ומטה. ` +
+      `הפעל "מיקום מדויק" בהגדרות המכשיר ונסה שוב.`,
+      "warn"
+    );
+  }
+}
+
+/* -------------------------------------------------- */
+/* Users */
+/* -------------------------------------------------- */
 
 async function loadUsers() {
   try {
-    const data = await (await fetch(WORKER_URL + '/api/users')).json();
-    (data.users || []).forEach(u => userSelect.add(new Option(u, u)));
-    if (myUser) { userSelect.value = myUser; sendBtn.disabled = !userSelect.value; }
-  } catch { setStatus('שגיאה בטעינת רשימת המשתמשים מהשרת', 'err'); }
+    const res = await fetch(WORKER_URL + "/api/users");
+
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status);
+    }
+
+    const data = await res.json();
+
+    /*
+      כדי לא ליצור משתמשים כפולים אם loadUsers נקרא שוב.
+    */
+    userSelect.innerHTML =
+      '<option value="">בחר משתמש…</option>';
+
+    (data.users || []).forEach((u) => {
+      userSelect.add(new Option(u, u));
+    });
+
+    if (myUser) {
+      userSelect.value = myUser;
+
+      if (userSelect.value === myUser) {
+        startHighAccuracyTracking();
+      }
+    }
+
+  } catch (e) {
+    setStatus(
+      "שגיאה בטעינת רשימת המשתמשים מהשרת",
+      "err"
+    );
+  }
 }
 
-userSelect.addEventListener('change', () => {
-  myUser = userSelect.value;
-  localStorage.setItem('liveloc_user', myUser);
-  sendBtn.disabled = !myUser;
-  document.body.classList.remove('at-point');
-});
+/* -------------------------------------------------- */
+/* High accuracy geolocation */
+/* -------------------------------------------------- */
 
-sendBtn.addEventListener('click', () => {
-  if (!navigator.geolocation) return setStatus('הדפדפן לא תומך במיקום.', 'err');
+async function checkPermissionState() {
+  /*
+    Permissions API לא מאפשרת לקבל בכל הדפדפנים
+    דגל נפרד של "Precise Location", ולכן הבדיקה
+    המחייבת בפועל היא accuracy <= 20m.
+  */
+  if (!navigator.permissions) {
+    return;
+  }
+
+  try {
+    const permission = await navigator.permissions.query({
+      name: "geolocation"
+    });
+
+    if (permission.state === "denied") {
+      setStatus(
+        "❌ הגישה למיקום חסומה. יש לאשר מיקום מדויק בהגדרות הדפדפן/המכשיר.",
+        "err"
+      );
+    }
+  } catch {
+    // לא כל הדפדפנים תומכים בבדיקה הזו.
+  }
+}
+
+async function startHighAccuracyTracking() {
+  stopTracking();
+
+  if (!navigator.geolocation) {
+    setStatus(
+      "❌ הדפדפן לא תומך במיקום.",
+      "err"
+    );
+    return;
+  }
+
+  await checkPermissionState();
+
+  myPos = null;
+  hasCenteredOnMe = false;
+  updateAccuracyUI();
+
+  setStatus(
+    "📡 מבקש הרשאת מיקום מדויק ומחפש דיוק של 20 מטר ומטה…"
+  );
+
+  watchId = navigator.geolocation.watchPosition(
+    onPosition,
+    onPositionError,
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    }
+  );
+}
+
+function stopTracking() {
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+}
+
+function onPosition(pos) {
+  myPos = {
+    lat: pos.coords.latitude,
+    lon: pos.coords.longitude,
+    accuracy: pos.coords.accuracy,
+    timestamp: pos.timestamp
+  };
+
+  updateAccuracyUI();
+
+  /*
+    גם אם הדיוק לא מספיק, מציגים את המיקום העצמי
+    ואת מעגל הדיוק, אבל לא נותנים גישה למיקומים
+    של המשתמשים ולא שולחים את המיקום לשרת.
+  */
+  updateMyMarker();
+
+  if (isAccuracyGood()) {
+    setStatus(
+      `✅ דיוק מספיק: ±${Math.round(myPos.accuracy)} מ׳. אפשר לשלוח מיקום.`,
+      "ok"
+    );
+
+    refreshLocations();
+  }
+}
+
+function onPositionError(err) {
   sendBtn.disabled = true;
-  setStatus('מאתר מיקום…');
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    myPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-    try {
-      const res = await (await fetch(WORKER_URL + '/api/location', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: myUser, lat: myPos.lat, lon: myPos.lon })
-      })).json();
-      if (res.error) throw new Error(res.error);
-      const near = res.near;
-      document.body.classList.toggle('at-point', !!near);
-      if (near) setStatus(`✅ אתה ב-${near.point} (${near.distance} מ׳) — נרשם ${near.timestamp}`, 'ok');
-      else if (CHECKPOINTS.includes(myUser)) setStatus(`המיקום של ${myUser} עודכן.`);
-      else setStatus('המיקום נשלח. אתה לא בטווח 20 מ׳ מ-start או middle.');
-      const data = await (await fetch(WORKER_URL + '/api/locations')).json();
-      render(data.locations || {});
-    } catch (e) { setStatus('שגיאה בשליחה: ' + e.message, 'err'); }
-    sendBtn.disabled = false;
-  }, (err) => {
-    setStatus(err.code === err.PERMISSION_DENIED ? 'לא ניתנה הרשאת מיקום.' : 'שגיאת מיקום: ' + err.message, 'err');
-    sendBtn.disabled = false;
-  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-});
 
-function render(locs) {
-  const cx = 130, cy = 130, R = 110;
-  let s = [0.33, 0.66, 1].map(f => `<circle class="ring" cx="${cx}" cy="${cy}" r="${R * f}"/>`).join('');
-  s += `<line class="axis" x1="${cx - R}" y1="${cy}" x2="${cx + R}" y2="${cy}"/><line class="axis" x1="${cx}" y1="${cy - R}" x2="${cx}" y2="${cy + R}"/>`;
-  s += `<text class="lbl" x="${cx}" y="${cy - R - 4}">צפון</text><text class="lbl" x="${cx}" y="${cy + R + 12}">דרום</text>`;
-  s += `<text class="lbl" x="${cx + R + 14}" y="${cy + 3}">מזרח</text><text class="lbl" x="${cx - R - 14}" y="${cy + 3}">מערב</text>`;
-  const others = Object.entries(locs).filter(([n]) => n !== myUser);
-  const scale = Math.max(0.05, ...others.map(([, p]) => distKm(myPos.lat, myPos.lon, p.lat, p.lon))) * 1.15;
-  s += `<circle cx="${cx}" cy="${cy}" r="7" fill="var(--accent)" stroke="var(--bg)" stroke-width="2"/><text class="lbl" x="${cx}" y="${cy + 20}">${myUser}</text>`;
-  others.forEach(([n, p]) => {
-    const dx = (p.lon - myPos.lon) * Math.cos(rad(myPos.lat)) * 111.32, dy = (p.lat - myPos.lat) * 111.32;
-    s += `<circle cx="${cx + dx / scale * R}" cy="${cy - dy / scale * R}" r="6" fill="${colorFor(n)}" stroke="var(--bg)" stroke-width="2"/>`;
-  });
-  svg.innerHTML = s;
-  listEl.innerHTML = '';
-  others.map(([n, p]) => [n, distKm(myPos.lat, myPos.lon, p.lat, p.lon)]).sort((a, b) => a[1] - b[1]).forEach(([n, d]) => {
-    const li = document.createElement('li');
-    li.innerHTML = `<span class="sw" style="background:${colorFor(n)}"></span><span class="nm"></span><span class="ds">${fmt(d)}</span>`;
-    li.querySelector('.nm').textContent = n;
-    listEl.appendChild(li);
-  });
+  if (err.code === err.PERMISSION_DENIED) {
+    setStatus(
+      "❌ לא ניתנה הרשאת מיקום. יש לאשר מיקום מדויק בהגדרות הדפדפן והמכשיר.",
+      "err"
+    );
+  } else if (err.code === err.TIMEOUT) {
+    setStatus(
+      "⚠️ לא התקבל מיקום מדויק בזמן. נסה שוב במקום פתוח או עם GPS זמין.",
+      "warn"
+    );
+  } else {
+    setStatus(
+      "❌ שגיאת מיקום: " + err.message,
+      "err"
+    );
+  }
 }
 
+/* -------------------------------------------------- */
+/* Send location */
+/* -------------------------------------------------- */
+
+sendBtn.addEventListener("click", async () => {
+  /*
+    בדיקה נוספת ממש לפני השליחה.
+    אי אפשר לעקוף את חוק 20 המטרים גם אם הכפתור היה פעיל.
+  */
+  if (!myUser) {
+    setStatus(
+      "בחר משתמש.",
+      "err"
+    );
+    return;
+  }
+
+  if (!myPos) {
+    setStatus(
+      "ממתין למיקום מדויק…",
+      "warn"
+    );
+    return;
+  }
+
+  if (myPos.accuracy > ACCURACY_LIMIT_M) {
+    sendBtn.disabled = true;
+
+    setStatus(
+      `❌ המיקום לא נשלח: הדיוק הוא ±${Math.round(myPos.accuracy)} מ׳. ` +
+      `נדרש ±20 מ׳ ומטה.`,
+      "err"
+    );
+
+    clearOtherMarkers();
+    return;
+  }
+
+  sendBtn.disabled = true;
+
+  setStatus("📡 שולח מיקום מדויק…");
+
+  try {
+    const response = await fetch(
+      WORKER_URL + "/api/location",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          user: myUser,
+          lat: myPos.lat,
+          lon: myPos.lon,
+          accuracy: myPos.accuracy
+        })
+      }
+    );
+
+    const res = await response.json();
+
+    if (!response.ok || res.error) {
+      throw new Error(
+        res.error || ("HTTP " + response.status)
+      );
+    }
+
+    const near = res.near;
+
+    document.body.classList.toggle(
+      "at-point",
+      !!near
+    );
+
+    if (near) {
+      setStatus(
+        `✅ אתה ב-${near.point} (${near.distance} מ׳) — נרשם ${near.timestamp}`,
+        "ok"
+      );
+    } else if (CHECKPOINTS.includes(myUser)) {
+      setStatus(
+        `המיקום של ${myUser} עודכן.`,
+        "ok"
+      );
+    } else {
+      setStatus(
+        "המיקום נשלח בהצלחה. אתה לא בטווח 20 מ׳ מ-start או middle."
+      );
+    }
+
+    await refreshLocations();
+
+  } catch (e) {
+    setStatus(
+      "❌ שגיאה בשליחה: " + e.message,
+      "err"
+    );
+  } finally {
+    /*
+      לא מפעילים מחדש אם בזמן השליחה הדיוק כבר נהיה גרוע.
+    */
+    sendBtn.disabled = !isAccuracyGood();
+  }
+});
+
+/* -------------------------------------------------- */
+/* Live locations */
+/* -------------------------------------------------- */
+
+async function refreshLocations() {
+  /*
+    בלי דיוק מספיק:
+    אין גישה למיקומים של משתמשים אחרים.
+  */
+  if (!isAccuracyGood()) {
+    clearOtherMarkers();
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      WORKER_URL + "/api/locations",
+      {
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("HTTP " + response.status);
+    }
+
+    const data = await response.json();
+
+    renderLocations(data.locations || {});
+
+  } catch (e) {
+    console.error("refreshLocations:", e);
+
+    /*
+      לא משנים את ה-status במקרה של refresh תקופתי,
+      כדי לא להחליף הודעת דיוק תקינה בהודעת רשת.
+    */
+  }
+}
+
+function renderLocations(locs) {
+  if (!isAccuracyGood()) {
+    clearOtherMarkers();
+    return;
+  }
+
+  const currentUsers = new Set(
+    Object.keys(locs).filter(
+      (name) => name !== myUser
+    )
+  );
+
+  /*
+    מחיקת סמנים של משתמשים שכבר לא קיימים.
+  */
+  for (const [name, marker] of otherMarkers.entries()) {
+    if (!currentUsers.has(name)) {
+      map.removeLayer(marker);
+      otherMarkers.delete(name);
+    }
+  }
+
+  const list = [];
+
+  for (const [name, p] of Object.entries(locs)) {
+    if (name === myUser) {
+      continue;
+    }
+
+    if (
+      !Number.isFinite(Number(p.lat)) ||
+      !Number.isFinite(Number(p.lon))
+    ) {
+      continue;
+    }
+
+    const lat = Number(p.lat);
+    const lon = Number(p.lon);
+
+    const distanceKm = distKm(
+      myPos.lat,
+      myPos.lon,
+      lat,
+      lon
+    );
+
+    list.push({
+      name,
+      lat,
+      lon,
+      distanceKm,
+      timestamp: p.timestamp
+    });
+
+    const popupHtml = `
+      <strong>👤 ${escapeHtml(name)}</strong><br>
+      מרחק: ${fmt(distanceKm)}<br>
+      ${p.timestamp
+        ? "עדכון: " + escapeHtml(p.timestamp)
+        : ""}
+    `;
+
+    let marker = otherMarkers.get(name);
+
+    if (!marker) {
+      marker = L.marker(
+        [lat, lon],
+        {
+          icon: makeOtherIcon(name)
+        }
+      ).addTo(map);
+
+      otherMarkers.set(name, marker);
+    } else {
+      marker.setLatLng([lat, lon]);
+    }
+
+    marker.bindPopup(popupHtml);
+  }
+
+  /*
+    רשימה מתחת למפה
+  */
+  list.innerHTML = "";
+
+  list
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .forEach((user) => {
+      const li = document.createElement("li");
+
+      li.innerHTML = `
+        <span
+          class="sw"
+          style="background:${colorFor(user.name)}"
+        ></span>
+
+        <span class="nm"></span>
+
+        <span class="ds">
+          ${fmt(user.distanceKm)}
+        </span>
+      `;
+
+      li.querySelector(".nm").textContent =
+        user.name;
+
+      /*
+        לחיצה ברשימה קופצת למשתמש במפה
+      */
+      li.style.cursor = "pointer";
+
+      li.addEventListener("click", () => {
+        const marker = otherMarkers.get(user.name);
+
+        if (!marker) return;
+
+        map.setView(
+          [user.lat, user.lon],
+          Math.max(map.getZoom(), 16)
+        );
+
+        marker.openPopup();
+      });
+
+      listEl.appendChild(li);
+    });
+
+  if (list.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "אין כרגע משתמשים אחרים עם מיקום.";
+    listEl.appendChild(li);
+  }
+}
+
+/* -------------------------------------------------- */
+/* User selection */
+/* -------------------------------------------------- */
+
+userSelect.addEventListener("change", () => {
+  myUser = userSelect.value;
+
+  localStorage.setItem(
+    "liveloc_user",
+    myUser
+  );
+
+  document.body.classList.remove("at-point");
+
+  clearOtherMarkers();
+
+  if (!myUser) {
+    stopTracking();
+    sendBtn.disabled = true;
+
+    setStatus(
+      'בחרו משתמש ולחצו על "שלח מיקום".'
+    );
+
+    return;
+  }
+
+  startHighAccuracyTracking();
+});
+
+/* -------------------------------------------------- */
+/* Auto refresh */
+/* -------------------------------------------------- */
+
+setInterval(() => {
+  if (isAccuracyGood()) {
+    refreshLocations();
+  }
+}, REFRESH_INTERVAL_MS);
+
+/* -------------------------------------------------- */
+/* Init */
+/* -------------------------------------------------- */
+
+initMap();
 loadUsers();
 </script>
+
 </body>
 </html>
