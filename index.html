@@ -289,6 +289,21 @@
 
     <div id="userNote"></div>
 
+    <div id="registerFields" style="display:none;gap:8px;margin-bottom:8px" class="user-row">
+      <select id="plugahSelect" style="flex:0 0 90px;padding:9px 10px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit">
+        <option value="">פלוגה</option>
+        <option value="א">א</option>
+        <option value="ב">ב</option>
+        <option value="ג">ג</option>
+        <option value="ד">ד</option>
+        <option value="ה">ה</option>
+        <option value="ו">ו</option>
+        <option value="ז">ז</option>
+      </select>
+      <input id="tzevetInput" type="number" min="1" max="30" placeholder="צוות (1-30)"
+        style="flex:1;min-width:0;padding:9px 10px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit">
+    </div>
+
   </div>
 
   <div id="activeUserBlock" class="active-user" style="display:none">
@@ -331,6 +346,11 @@ const pickerBlock = $("pickerBlock");
 const activeUserBlock = $("activeUserBlock");
 const activeUserName = $("activeUserName");
 const switchUserBtn = $("switchUserBtn");
+const registerFields = $("registerFields");
+const plugahSelect = $("plugahSelect");
+const tzevetInput = $("tzevetInput");
+
+let knownMeta = {};
 
 const accuracyValue = $("accuracyValue");
 const sendBtn = $("sendBtn");
@@ -509,18 +529,32 @@ function updateUserNote(){
 
     userNote.textContent = "";
     userNote.className = "";
+    registerFields.style.display = "none";
     confirmUserBtn.disabled = false;
     confirmUserBtn.textContent = "בחר";
 
   }else{
 
     userNote.textContent =
-      `"${typed}" עוד לא רשום — לחיצה על הכפתור תרשום אותו כמשתמש חדש`;
+      `"${typed}" עוד לא רשום — מלאו פלוגה וצוות ולחצו הרשם`;
     userNote.className = "new";
-    confirmUserBtn.disabled = false;
+    registerFields.style.display = "flex";
     confirmUserBtn.textContent = "הרשם";
+    confirmUserBtn.disabled = !(plugahSelect.value && isValidTzevetValue());
   }
 }
+
+
+function isValidTzevetValue(){
+
+  const n = Number(tzevetInput.value);
+
+  return Number.isInteger(n) && n >= 1 && n <= 30;
+}
+
+
+plugahSelect.addEventListener("change", updateUserNote);
+tzevetInput.addEventListener("input", updateUserNote);
 
 
 async function confirmUser(){
@@ -533,13 +567,24 @@ async function confirmUser(){
 
   if(!knownUsers.includes(typed)){
 
+    const plugah = plugahSelect.value;
+    const tzevet = tzevetInput.value;
+
+    if(!plugah || !isValidTzevetValue()){
+
+      setStatus("יש לבחור פלוגה (א-ז) ולהזין צוות (1-30).", "err");
+      confirmUserBtn.disabled = false;
+
+      return;
+    }
+
     try{
 
       const response =
         await fetch(WORKER_URL + "/api/register", {
           method:"POST",
           headers:{ "Content-Type":"application/json" },
-          body:JSON.stringify({ user:typed })
+          body:JSON.stringify({ user:typed, plugah, tzevet })
         });
 
       const result = await response.json();
@@ -551,7 +596,12 @@ async function confirmUser(){
 
       knownUsers.push(typed);
       knownUsers.sort();
+      knownMeta[typed] = { plugah, tzevet:String(tzevet) };
       renderUserDatalist();
+
+      registerFields.style.display = "none";
+      plugahSelect.value = "";
+      tzevetInput.value = "";
 
     }catch(e){
 
@@ -573,7 +623,10 @@ function selectUser(name){
 
   pickerBlock.style.display = "none";
   activeUserBlock.style.display = "block";
-  activeUserName.textContent = myUser;
+
+  const m = knownMeta[name];
+  activeUserName.textContent =
+    m ? `${name} (פלוגה ${m.plugah}, צוות ${m.tzevet})` : name;
 
   clearOtherMarkers();
   startLocationWatch();
@@ -933,6 +986,7 @@ async function loadUsers(){
       await response.json();
 
     knownUsers = (data.users || []).slice().sort();
+    knownMeta = data.meta || {};
 
     renderUserDatalist();
 
