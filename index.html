@@ -60,17 +60,16 @@
     padding:0 12px 18px;
   }
 
-  /* ---------------- User + location row ---------------- */
+  /* ---------------- User picker ---------------- */
 
-  .top-row{
+  .user-row{
     display:flex;
     gap:8px;
-    align-items:stretch;
     margin-bottom:8px;
   }
 
-  #userSelect{
-    width:145px;
+  #userInput{
+    flex:1;
     min-width:0;
     padding:9px 10px;
     background:var(--card);
@@ -81,9 +80,64 @@
     font-family:inherit;
   }
 
+  #userInput::placeholder{
+    color:var(--muted);
+  }
+
+  #confirmUserBtn{
+    flex:0 0 auto;
+    padding:9px 14px;
+    border:0;
+    border-radius:9px;
+    background:var(--accent);
+    color:#04231a;
+    font-weight:700;
+    font-size:14px;
+    font-family:inherit;
+    cursor:pointer;
+  }
+
+  #confirmUserBtn:disabled{
+    opacity:.5;
+    cursor:default;
+  }
+
+  #userNote{
+    font-size:12px;
+    color:var(--muted);
+    margin:-2px 0 8px;
+    min-height:15px;
+  }
+
+  #userNote.new{
+    color:var(--accent);
+  }
+
+  .active-user{
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:8px;
+  }
+
+  .active-user b{
+    color:var(--text);
+  }
+
+  .active-user button{
+    margin-right:8px;
+    background:none;
+    border:1px solid var(--line);
+    color:var(--muted);
+    border-radius:7px;
+    padding:2px 8px;
+    font-size:12px;
+    font-family:inherit;
+    cursor:pointer;
+  }
+
+  /* ---------------- Location box ---------------- */
+
   .location-box{
-    flex:1;
-    min-width:0;
     background:var(--card);
     border:1px solid var(--line);
     border-radius:9px;
@@ -92,6 +146,7 @@
     align-items:center;
     justify-content:space-between;
     gap:8px;
+    margin-bottom:8px;
   }
 
   .location-title{
@@ -218,17 +273,32 @@
 
 <div class="wrap">
 
-  <div class="top-row">
+  <div id="pickerBlock">
 
-    <select id="userSelect">
-      <option value="">משתמש…</option>
-    </select>
+    <div class="user-row">
+      <input
+        id="userInput"
+        list="usersList"
+        placeholder="הקלידו שם משתמש…"
+        autocomplete="off"
+      >
+      <datalist id="usersList"></datalist>
 
-    <div class="location-box">
-      <span class="location-title">מיקום</span>
-      <span id="accuracyValue">מאתר…</span>
+      <button id="confirmUserBtn" disabled>בחר</button>
     </div>
 
+    <div id="userNote"></div>
+
+  </div>
+
+  <div id="activeUserBlock" class="active-user" style="display:none">
+    מחובר בתור <b id="activeUserName"></b>
+    <button id="switchUserBtn">החלף</button>
+  </div>
+
+  <div class="location-box">
+    <span class="location-title">מיקום</span>
+    <span id="accuracyValue">מאתר…</span>
   </div>
 
   <button id="sendBtn" disabled>
@@ -253,11 +323,20 @@ const REFRESH_INTERVAL = 5000;
 
 const $ = id => document.getElementById(id);
 
-const userSelect = $("userSelect");
+const userInput = $("userInput");
+const usersListEl = $("usersList");
+const confirmUserBtn = $("confirmUserBtn");
+const userNote = $("userNote");
+const pickerBlock = $("pickerBlock");
+const activeUserBlock = $("activeUserBlock");
+const activeUserName = $("activeUserName");
+const switchUserBtn = $("switchUserBtn");
+
 const accuracyValue = $("accuracyValue");
 const sendBtn = $("sendBtn");
 const statusEl = $("status");
 
+let knownUsers = [];
 let myUser = localStorage.getItem("liveloc_user") || "";
 let myPos = null;
 
@@ -385,6 +464,164 @@ function setStatus(text, cls=""){
   statusEl.textContent = text;
   statusEl.className = cls;
 }
+
+
+function safeUsername(u){
+
+  return String(u || "")
+    .replace(/[^a-zA-Z0-9_\u05D0-\u05EA-]/g,"")
+    .slice(0,40);
+}
+
+
+/* =====================================================
+   USER PICKER (type, then choose / register)
+===================================================== */
+
+function renderUserDatalist(){
+
+  usersListEl.innerHTML = "";
+
+  knownUsers.forEach(u => {
+
+    const opt = document.createElement("option");
+    opt.value = u;
+    usersListEl.appendChild(opt);
+  });
+}
+
+
+function updateUserNote(){
+
+  const typed = safeUsername(userInput.value);
+
+  if(!typed){
+
+    userNote.textContent = "";
+    userNote.className = "";
+    confirmUserBtn.disabled = true;
+    confirmUserBtn.textContent = "בחר";
+
+    return;
+  }
+
+  if(knownUsers.includes(typed)){
+
+    userNote.textContent = "";
+    userNote.className = "";
+    confirmUserBtn.disabled = false;
+    confirmUserBtn.textContent = "בחר";
+
+  }else{
+
+    userNote.textContent =
+      `"${typed}" עוד לא רשום — לחיצה על הכפתור תרשום אותו כמשתמש חדש`;
+    userNote.className = "new";
+    confirmUserBtn.disabled = false;
+    confirmUserBtn.textContent = "הרשם";
+  }
+}
+
+
+async function confirmUser(){
+
+  const typed = safeUsername(userInput.value);
+
+  if(!typed) return;
+
+  confirmUserBtn.disabled = true;
+
+  if(!knownUsers.includes(typed)){
+
+    try{
+
+      const response =
+        await fetch(WORKER_URL + "/api/register", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body:JSON.stringify({ user:typed })
+        });
+
+      const result = await response.json();
+
+      if(!response.ok || result.error){
+
+        throw new Error(result.error || ("HTTP " + response.status));
+      }
+
+      knownUsers.push(typed);
+      knownUsers.sort();
+      renderUserDatalist();
+
+    }catch(e){
+
+      setStatus("שגיאה ברישום המשתמש: " + e.message, "err");
+      confirmUserBtn.disabled = false;
+
+      return;
+    }
+  }
+
+  selectUser(typed);
+}
+
+
+function selectUser(name){
+
+  myUser = name;
+  localStorage.setItem("liveloc_user", myUser);
+
+  pickerBlock.style.display = "none";
+  activeUserBlock.style.display = "block";
+  activeUserName.textContent = myUser;
+
+  clearOtherMarkers();
+  startLocationWatch();
+}
+
+
+function showPicker(){
+
+  stopLocationWatch();
+
+  myUser = "";
+  localStorage.removeItem("liveloc_user");
+
+  myPos = null;
+  firstLocation = true;
+
+  clearOtherMarkers();
+
+  accuracyValue.textContent = "בחר משתמש";
+  accuracyValue.className = "";
+
+  sendBtn.disabled = true;
+  sendBtn.classList.remove("accuracy-bad");
+  sendBtn.textContent = "שלח מרחק";
+
+  setStatus("");
+
+  activeUserBlock.style.display = "none";
+  pickerBlock.style.display = "block";
+
+  userInput.value = "";
+  updateUserNote();
+  userInput.focus();
+}
+
+
+userInput.addEventListener("input", updateUserNote);
+
+userInput.addEventListener("keydown", e => {
+
+  if(e.key === "Enter"){
+    e.preventDefault();
+    confirmUser();
+  }
+});
+
+confirmUserBtn.addEventListener("click", confirmUser);
+switchUserBtn.addEventListener("click", showPicker);
 
 
 /* =====================================================
@@ -695,26 +932,18 @@ async function loadUsers(){
     const data =
       await response.json();
 
-    userSelect.innerHTML =
-      `<option value="">משתמש…</option>`;
+    knownUsers = (data.users || []).slice().sort();
+
+    renderUserDatalist();
 
 
-    (data.users || []).forEach(user => {
+    if(myUser && knownUsers.includes(myUser)){
 
-      userSelect.add(
-        new Option(user,user)
-      );
-    });
+      selectUser(myUser);
 
+    }else{
 
-    if(myUser){
-
-      userSelect.value = myUser;
-
-      if(userSelect.value === myUser){
-
-        startLocationWatch();
-      }
+      showPicker();
     }
 
   }catch(e){
@@ -723,6 +952,8 @@ async function loadUsers(){
       "שגיאה בטעינת המשתמשים.",
       "err"
     );
+
+    showPicker();
   }
 }
 
@@ -730,36 +961,6 @@ async function loadUsers(){
 /* =====================================================
    LATEST LOCATION ONLY
 ===================================================== */
-
-/*
-  הפונקציה הזאת מטפלת גם במצב שבו השרת מחזיר:
-
-  {
-    start: {...},
-    yoav: {...}
-  }
-
-  וגם במצב שבו יש היסטוריה:
-
-  {
-    start: [
-      {...},
-      {...},
-      {...}
-    ]
-  }
-
-  וגם במצב שבו locations הוא מערך:
-
-  [
-    {user:"start", ...},
-    {user:"start", ...},
-    {user:"yoav", ...}
-  ]
-
-  בכל מקרה אנחנו משאירים רק את הרשומה העדכנית
-  ביותר לכל משתמש.
-*/
 
 function getTimestamp(item){
 
@@ -800,10 +1001,6 @@ function normalizeLatestLocations(raw){
   const latest = {};
 
 
-  /*
-    Case 1:
-    locations הוא מערך
-  */
   if(Array.isArray(raw)){
 
     raw.forEach(item => {
@@ -824,17 +1021,10 @@ function normalizeLatestLocations(raw){
   }
 
 
-  /*
-    Case 2:
-    locations הוא אובייקט
-  */
   if(raw && typeof raw === "object"){
 
     for(const [key,value] of Object.entries(raw)){
 
-      /*
-        ערך הוא מערך היסטוריה
-      */
       if(Array.isArray(value)){
 
         if(value.length === 0){
@@ -854,15 +1044,8 @@ function normalizeLatestLocations(raw){
       }
 
 
-      /*
-        ערך הוא מיקום יחיד
-      */
       if(value && typeof value === "object"){
 
-        /*
-          אם בתוך הרשומה יש user,
-          משתמשים בו. אחרת משתמשים בשם המפתח.
-        */
         const user =
           value.user
             ? String(value.user)
@@ -897,9 +1080,6 @@ function clearOtherMarkers(){
 
 function renderLocations(rawLocations){
 
-  /*
-    לא מציגים מיקומי אחרים בלי דיוק מספיק.
-  */
   if(!accuracyIsGood()){
 
     clearOtherMarkers();
@@ -918,9 +1098,6 @@ function renderLocations(rawLocations){
 
   for(const [name,p] of Object.entries(locations)){
 
-    /*
-      אנחנו לא מציגים את עצמנו ברשימת האחרים.
-    */
     if(name === myUser){
       continue;
     }
@@ -1008,10 +1185,6 @@ function renderLocations(rawLocations){
   }
 
 
-  /*
-    מוחקים מיקומים של משתמשים
-    שכבר אינם קיימים בתשובת השרת.
-  */
   for(
     const [name,marker]
     of otherMarkers.entries()
@@ -1082,11 +1255,6 @@ sendBtn.addEventListener(
   "click",
   async () => {
 
-    /*
-      בדיקת אבטחה נוספת:
-      גם אם somehow הכפתור הופעל,
-      אין לשלוח נתון עם דיוק גרוע.
-    */
     if(!myUser){
       return;
     }
@@ -1117,10 +1285,6 @@ sendBtn.addEventListener(
 
     try{
 
-      /*
-        המיקום הנוכחי בלבד נשלח כאן.
-        watchPosition עצמו לא שולח שום דבר.
-      */
       const response =
         await fetch(
           WORKER_URL + "/api/location",
@@ -1157,9 +1321,6 @@ sendBtn.addEventListener(
       }
 
 
-      /*
-        אם השרת זיהה נקודת ביקורת.
-      */
       if(result.near){
 
         setStatus(
@@ -1176,10 +1337,6 @@ sendBtn.addEventListener(
       }
 
 
-      /*
-        אחרי השליחה מרעננים את המפה,
-        אבל לא משנים את myPos.
-      */
       await refreshLocations();
 
 
@@ -1199,70 +1356,12 @@ sendBtn.addEventListener(
 
 
 /* =====================================================
-   USER CHANGE
-===================================================== */
-
-userSelect.addEventListener(
-  "change",
-  () => {
-
-    myUser =
-      userSelect.value;
-
-    localStorage.setItem(
-      "liveloc_user",
-      myUser
-    );
-
-
-    clearOtherMarkers();
-
-
-    if(!myUser){
-
-      stopLocationWatch();
-
-      myPos = null;
-
-      accuracyValue.textContent =
-        "בחר משתמש";
-
-      accuracyValue.className = "";
-
-      sendBtn.disabled = true;
-      sendBtn.classList.remove(
-        "accuracy-bad"
-      );
-
-      sendBtn.textContent =
-        "שלח מרחק";
-
-      setStatus("");
-
-      return;
-    }
-
-
-    /*
-      מתחילים לקבל מיקום ברציפות.
-      שום מיקום עדיין לא נשלח.
-    */
-    startLocationWatch();
-  }
-);
-
-
-/* =====================================================
    LIVE REFRESH
 ===================================================== */
 
 setInterval(
   () => {
 
-    /*
-      הרענון הוא של המשתמשים האחרים בלבד.
-      המיקום העצמי אינו תלוי בו.
-    */
     if(accuracyIsGood()){
 
       refreshLocations();
