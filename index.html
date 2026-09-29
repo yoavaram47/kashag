@@ -360,6 +360,12 @@ let knownUsers = [];
 let myUser = localStorage.getItem("liveloc_user") || "";
 let myPos = null;
 
+let isCheckpointUser = false;   // "start" or "middle"
+let runTarget = null;           // "start" | "middle" | null — next checkpoint this runner needs
+let runState = "idle";          // "idle" | "started" | "middle" | "checkpoint"
+let checkpointPositions = {};   // { start:{lat,lon}, middle:{lat,lon} }
+let stateTimer = null;
+
 let watchId = null;
 let map = null;
 
@@ -621,6 +627,10 @@ function selectUser(name){
   myUser = name;
   localStorage.setItem("liveloc_user", myUser);
 
+  isCheckpointUser = (name === "start" || name === "middle");
+  runTarget = null;
+  runState = isCheckpointUser ? "checkpoint" : "idle";
+
   pickerBlock.style.display = "none";
   activeUserBlock.style.display = "block";
 
@@ -630,6 +640,31 @@ function selectUser(name){
 
   clearOtherMarkers();
   startLocationWatch();
+
+  if(!isCheckpointUser){
+    refreshMyState();
+    if(stateTimer) clearInterval(stateTimer);
+    stateTimer = setInterval(refreshMyState, REFRESH_INTERVAL);
+  }
+}
+
+
+async function refreshMyState(){
+
+  if(!myUser || isCheckpointUser) return;
+
+  try{
+
+    const res = await fetch(WORKER_URL + "/api/mystate?user=" + encodeURIComponent(myUser));
+    const data = await res.json();
+
+    if(data.target){
+      runTarget = data.target;
+      runState = data.state;
+      applyRunGating();
+    }
+
+  }catch(e){ /* keep last known state */ }
 }
 
 
@@ -637,7 +672,12 @@ function showPicker(){
 
   stopLocationWatch();
 
+  if(stateTimer){ clearInterval(stateTimer); stateTimer = null; }
+
   myUser = "";
+  isCheckpointUser = false;
+  runTarget = null;
+  runState = "idle";
   localStorage.removeItem("liveloc_user");
 
   myPos = null;
@@ -755,6 +795,60 @@ function updateAccuracyUI(){
   if(myPos.accuracy <= ACCURACY_LIMIT){
 
     sendBtn.textContent = "שלח מרחק";
+  }
+
+  applyRunGating();
+}
+
+
+/* =====================================================
+   RUN GATING (start → middle → start)
+===================================================== */
+
+function applyRunGating(){
+
+  if(!myUser || isCheckpointUser){
+    return; // checkpoint users just broadcast their own position, no gating
+  }
+
+  if(!myPos || !accuracyIsGood()){
+    return; // already disabled by the accuracy check
+  }
+
+  if(!runTarget){
+    sendBtn.disabled = true;
+    sendBtn.textContent = "טוען מצב…";
+    return;
+  }
+
+  const targetLabel = runTarget === "start" ? "Start" : "Middle";
+  const targetPos = checkpointPositions[runTarget];
+
+  if(!targetPos){
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = `ממתין למיקום של ${targetLabel}…`;
+    return;
+  }
+
+  const distM = Math.round(
+    distanceKm(myPos.lat, myPos.lon, targetPos.lat, targetPos.lon) * 1000
+  );
+
+  const verb =
+    runState === "middle" ? "סיים ריצה — חזרה ל" :
+    runState === "started" ? "המשך ל" :
+    "התחל ריצה — הגעה ל";
+
+  if(distM <= ACCURACY_LIMIT){
+
+    sendBtn.disabled = false;
+    sendBtn.textContent = `${verb}-${targetLabel} ✓`;
+
+  }else{
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = `${verb}-${targetLabel} (${distM} מ׳)`;
   }
 }
 
@@ -1150,14 +1244,30 @@ function renderLocations(rawLocations){
     new Set();
 
 
+  // Only the two checkpoints are ever shown — never other regular runners.
+  checkpointPositions = {};
+
   for(const [name,p] of Object.entries(locations)){
 
-    if(name === myUser){
+    if(name !== "start" && name !== "middle"){
       continue;
     }
 
 
     if(!p){
+      continue;
+    }
+
+
+    const cpLat = Number(p.lat ?? p.latitude);
+    const cpLon = Number(p.lon ?? p.lng ?? p.longitude);
+
+    if(Number.isFinite(cpLat) && Number.isFinite(cpLon)){
+      checkpointPositions[name] = { lat:cpLat, lon:cpLon };
+    }
+
+
+    if(name === myUser){
       continue;
     }
 
@@ -1250,6 +1360,8 @@ function renderLocations(rawLocations){
       otherMarkers.delete(name);
     }
   }
+
+  applyRunGating();
 }
 
 
@@ -1378,7 +1490,7 @@ sendBtn.addEventListener(
       if(result.near){
 
         setStatus(
-          `✅ ${result.near.point} — ${result.near.distance} מ׳`,
+          `✅ נרשם: ${result.near.point} — ${result.near.timestamp}`,
           "ok"
         );
 
@@ -1390,8 +1502,13 @@ sendBtn.addEventListener(
         );
       }
 
+      if(!isCheckpointUser && result.target){
+        runTarget = result.target;
+        runState = result.state;
+      }
 
       await refreshLocations();
+      applyRunGating();
 
 
     }catch(e){
