@@ -58,6 +58,41 @@
     max-width:600px;
     margin:auto;
     padding:0 12px 18px;
+    padding-bottom:132px; /* leave room for the fixed action bar */
+  }
+
+  /* ---------------- Fixed action bar (timer + distance + button) ---------------- */
+
+  #actionBar{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:50;
+    background:var(--card);
+    border-top:1px solid var(--line);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));
+    max-width:600px;
+    margin:0 auto;
+    box-shadow:0 -4px 16px rgba(0,0,0,.35);
+  }
+
+  #runInfo{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:8px;
+  }
+
+  #runTimer{
+    font-size:22px;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+
+  #runDistance{
+    font-size:14px;
+    color:var(--muted);
   }
 
   /* ---------------- User picker ---------------- */
@@ -316,16 +351,22 @@
     <span id="accuracyValue">מאתר…</span>
   </div>
 
-  <button id="sendBtn" disabled>
-    שלח מרחק
-  </button>
-
   <div id="status"></div>
 
   <div class="map-box">
     <div id="map"></div>
   </div>
 
+</div>
+
+<div id="actionBar">
+  <div id="runInfo">
+    <div id="runTimer">00:00</div>
+    <div id="runDistance"></div>
+  </div>
+  <button id="sendBtn" disabled>
+    שלח מרחק
+  </button>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -355,6 +396,8 @@ let knownMeta = {};
 const accuracyValue = $("accuracyValue");
 const sendBtn = $("sendBtn");
 const statusEl = $("status");
+const runTimerEl = $("runTimer");
+const runDistanceEl = $("runDistance");
 
 let knownUsers = [];
 let myUser = localStorage.getItem("liveloc_user") || "";
@@ -365,6 +408,9 @@ let runTarget = null;           // "start" | "middle" | null — next checkpoint
 let runState = "idle";          // "idle" | "started" | "middle" | "checkpoint"
 let checkpointPositions = {};   // { start:{lat,lon}, middle:{lat,lon} }
 let stateTimer = null;
+
+let runStartMs = null;          // when the current run started (ms since epoch), or null
+let clockTimer = null;
 
 let watchId = null;
 let map = null;
@@ -630,6 +676,8 @@ function selectUser(name){
   isCheckpointUser = (name === "start" || name === "middle");
   runTarget = null;
   runState = isCheckpointUser ? "checkpoint" : "idle";
+  runStartMs = null;
+  stopClock();
 
   pickerBlock.style.display = "none";
   activeUserBlock.style.display = "block";
@@ -661,10 +709,26 @@ async function refreshMyState(){
     if(data.target){
       runTarget = data.target;
       runState = data.state;
+      applyRunTimer(data.current);
       applyRunGating();
     }
 
   }catch(e){ /* keep last known state */ }
+}
+
+
+function applyRunTimer(current){
+
+  if(current && current.start){
+
+    runStartMs = Date.parse(current.start);
+    startClock();
+
+  }else{
+
+    runStartMs = null;
+    stopClock();
+  }
 }
 
 
@@ -678,6 +742,8 @@ function showPicker(){
   isCheckpointUser = false;
   runTarget = null;
   runState = "idle";
+  runStartMs = null;
+  stopClock();
   localStorage.removeItem("liveloc_user");
 
   myPos = null;
@@ -805,21 +871,75 @@ function updateAccuracyUI(){
    RUN GATING (start → middle → start)
 ===================================================== */
 
+/*
+  ריצה = start -> middle -> start (בחזרה לאותה נקודת start).
+  שלושה כפתורים קבועים, לפי השלב:
+    idle    -> "התחל ריצה"      (צריך להגיע ל-start)
+    started -> "הגעתי לאמצע!"   (צריך להגיע ל-middle)
+    middle  -> "סיים ריצה"      (צריך לחזור ל-start)
+*/
+const RUN_BUTTON_LABEL = {
+  idle:    "התחל ריצה",
+  started: "הגעתי לאמצע!",
+  middle:  "סיים ריצה"
+};
+
+function formatElapsed(ms){
+
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+
+  return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+}
+
+
+function startClock(){
+
+  if(clockTimer) return;
+
+  clockTimer = setInterval(() => {
+
+    if(runStartMs == null){
+      runTimerEl.textContent = "00:00";
+      return;
+    }
+
+    runTimerEl.textContent = formatElapsed(Date.now() - runStartMs);
+
+  }, 1000);
+}
+
+
+function stopClock(){
+
+  if(clockTimer){ clearInterval(clockTimer); clockTimer = null; }
+  runTimerEl.textContent = "00:00";
+}
+
+
 function applyRunGating(){
 
   if(!myUser || isCheckpointUser){
+    runTimerEl.textContent = "";
+    runDistanceEl.textContent = "";
     return; // checkpoint users just broadcast their own position, no gating
   }
 
+  runTimerEl.textContent = runStartMs == null ? "00:00" : formatElapsed(Date.now() - runStartMs);
+
   if(!myPos || !accuracyIsGood()){
-    return; // already disabled by the accuracy check
+    return; // already disabled/labelled by the accuracy check
   }
 
   if(!runTarget){
     sendBtn.disabled = true;
     sendBtn.textContent = "טוען מצב…";
+    runDistanceEl.textContent = "";
     return;
   }
+
+  sendBtn.textContent = RUN_BUTTON_LABEL[runState] || RUN_BUTTON_LABEL.idle;
 
   const targetLabel = runTarget === "start" ? "Start" : "Middle";
   const targetPos = checkpointPositions[runTarget];
@@ -827,7 +947,7 @@ function applyRunGating(){
   if(!targetPos){
 
     sendBtn.disabled = true;
-    sendBtn.textContent = `ממתין למיקום של ${targetLabel}…`;
+    runDistanceEl.textContent = `ממתין למיקום של ${targetLabel}…`;
     return;
   }
 
@@ -835,21 +955,10 @@ function applyRunGating(){
     distanceKm(myPos.lat, myPos.lon, targetPos.lat, targetPos.lon) * 1000
   );
 
-  const verb =
-    runState === "middle" ? "סיים ריצה — חזרה ל" :
-    runState === "started" ? "המשך ל" :
-    "התחל ריצה — הגעה ל";
+  // בקטע הראשון (started) מציגים מרחק מ-middle; בחזרה (middle) מציגים מרחק מ-start.
+  runDistanceEl.textContent = `מרחק מ-${targetLabel}: ${distM} מ׳`;
 
-  if(distM <= ACCURACY_LIMIT){
-
-    sendBtn.disabled = false;
-    sendBtn.textContent = `${verb}-${targetLabel} ✓`;
-
-  }else{
-
-    sendBtn.disabled = true;
-    sendBtn.textContent = `${verb}-${targetLabel} (${distM} מ׳)`;
-  }
+  sendBtn.disabled = distM > ACCURACY_LIMIT;
 }
 
 
@@ -1505,6 +1614,7 @@ sendBtn.addEventListener(
       if(!isCheckpointUser && result.target){
         runTarget = result.target;
         runState = result.state;
+        applyRunTimer(result.current);
       }
 
       await refreshLocations();
