@@ -82,8 +82,8 @@ async function load(){
   const msg = document.getElementById("msg");
   try {
     const { results } = await (await fetch(WORKER_URL + "/api/results")).json();
-    allRows = Object.entries(results).map(([name, r]) => ({
-      name, ...r, best: r.runs.length ? Math.min(...r.runs.map(x => x.seconds)) : null
+    allRows = Object.entries(results).map(([id, r]) => ({
+      id, name: r.name || id, ...r, best: r.runs.length ? Math.min(...r.runs.map(x => x.seconds)) : null
     }));
     const namesList = document.getElementById("namesList");
     allRows.forEach(r => namesList.add(new Option(r.name, r.name)));
