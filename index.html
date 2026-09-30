@@ -20,6 +20,9 @@
   #userInput{ flex:1; min-width:0; padding:9px 10px; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; }
   #confirmUserBtn{ flex:0 0 auto; padding:9px 14px; border:0; border-radius:9px; background:var(--accent); color:#04231a; font-weight:700; font-size:14px; font-family:inherit; cursor:pointer; }
   #confirmUserBtn:disabled{ opacity:.5; cursor:default; }
+  #suggestions .sugg-item{ padding:10px 12px; font-size:14px; cursor:pointer; border-bottom:1px solid var(--line); }
+  #suggestions .sugg-item:last-child{ border-bottom:none; }
+  #suggestions .sugg-item:hover, #suggestions .sugg-item.active{ background:var(--bg); }
   #userNote{ font-size:12px; color:var(--muted); margin:-2px 0 8px; min-height:15px; }
   #userNote.new{ color:var(--accent); }
   .active-user{ font-size:13px; color:var(--muted); margin-bottom:8px; }
@@ -91,10 +94,10 @@
 <div class="wrap" id="wrap">
 
   <div id="pickerBlock">
-    <div class="user-row">
-      <input id="userInput" list="usersList" placeholder="הקלידו שם משתמש…" autocomplete="off">
-      <datalist id="usersList"></datalist>
+    <div class="user-row" style="position:relative">
+      <input id="userInput" placeholder="הקלידו שם משתמש…" autocomplete="off" style="flex:1;min-width:0;padding:9px 10px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit">
       <button id="confirmUserBtn" disabled>בחר</button>
+      <div id="suggestions" style="display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:var(--card);border:1px solid var(--line);border-radius:9px;max-height:220px;overflow-y:auto;z-index:40"></div>
     </div>
     <div id="userNote"></div>
     <div id="registerFields" style="display:none" class="reg-row">
@@ -134,6 +137,10 @@
           <label><input type="radio" name="cpSource" value="global"> נקודות גדודיות (ברירת מחדל)</label>
           <label><input type="radio" name="cpSource" value="own"> נקודות הפלוגה שלי</label>
         </div>
+        <div class="source-row">
+          <label><input type="radio" name="selfStart" value="on"> הפלוגה יכולה להתחיל ריצה בעצמה</label>
+          <label><input type="radio" name="selfStart" value="off"> רק דרך הזנקה</label>
+        </div>
       </div>
 
       <div class="cp-status" id="cpStatus"></div>
@@ -144,6 +151,7 @@
       <div class="signal-row">
         <input id="signalSeconds" type="number" min="1" max="600" value="20">
         <button id="signalBtn">הזנק!</button>
+        <button id="cancelSignalBtn" style="flex:0 0 auto;background:var(--card);color:var(--danger);border:1px solid var(--danger);border-radius:9px;padding:10px 14px;font-family:inherit;font-size:13px;cursor:pointer">בטל</button>
       </div>
       <div class="cp-status">כל רץ אידיאלי (עדיין לא התחיל) שנמצא בטווח 20 מ׳ מ-Start כשהספירה מגיעה לאפס, יתחיל ריצה אוטומטית. האמצע והסיום נשארים תמיד ביד הרץ.</div>
       <div id="adminCountdown"></div>
@@ -179,13 +187,13 @@ const REFRESH_INTERVAL = 5000;
 const $ = id => document.getElementById(id);
 
 const wrapEl = $("wrap");
-const userInput = $("userInput"), usersListEl = $("usersList"), confirmUserBtn = $("confirmUserBtn"), userNote = $("userNote");
+const userInput = $("userInput"), suggestionsEl = $("suggestions"), confirmUserBtn = $("confirmUserBtn"), userNote = $("userNote");
 const pickerBlock = $("pickerBlock"), activeUserBlock = $("activeUserBlock"), activeUserName = $("activeUserName"), switchUserBtn = $("switchUserBtn");
 const registerFields = $("registerFields"), plugahSelect = $("plugahSelect"), tzevetInput = $("tzevetInput");
 const geoBlock = $("geoBlock"), accuracyValue = $("accuracyValue"), statusEl = $("status");
 const adminBlock = $("adminBlock"), adminTitle = $("adminTitle"), setStartBtn = $("setStartBtn"), setMiddleBtn = $("setMiddleBtn"), cpStatus = $("cpStatus");
 const sourceBlock = $("sourceBlock"), adminCountdownEl = $("adminCountdown");
-const signalSeconds = $("signalSeconds"), signalBtn = $("signalBtn");
+const signalSeconds = $("signalSeconds"), signalBtn = $("signalBtn"), cancelSignalBtn = $("cancelSignalBtn");
 const actionBar = $("actionBar"), sendBtn = $("sendBtn"), stopBtn = $("stopBtn"), runTimerEl = $("runTimer"), runDistanceEl = $("runDistance");
 const countdownOverlay = $("countdownOverlay"), countdownNumber = $("countdownNumber"), countdownLabel = $("countdownLabel");
 
@@ -195,7 +203,7 @@ let myUser = null, myAdminScope = null, myPlugah = null;
 let myPos = null, watchId = null, map = null, mapReady = false, myMarker = null, myAccuracyCircle = null, firstLocation = true;
 let cpMarkers = {};
 let checkpointPositions = {};
-let runTarget = null, runState = "idle", runStartMs = null;
+let runTarget = null, runState = "idle", runStartMs = null, selfStartAllowed = true;
 let stateTimer = null, clockTimer = null, adminCountdownTimer = null;
 let lastHandledSignalIssuedAt = null, countdownTimer = null;
 
@@ -254,19 +262,46 @@ function renderCheckpointsOnMap(){
 
 function personLabel(p){ return `${p.name} (פלוגה ${p.plugah}, צוות ${p.tzevet})`; }
 
+// Admins are reachable ONLY by typing their exact reserved name (e.g. "admin_א") —
+// they are never listed as suggestions, so nobody stumbles onto the admin panel by browsing.
 function buildLabelIndex(){
   labelToPerson = {};
   knownAdmins.forEach(a => labelToPerson[a] = { id:a, name:a, isAdmin:true });
   knownPeople.forEach(p => labelToPerson[personLabel(p)] = { ...p, isAdmin:false });
 }
 
-function renderUserDatalist(){
-  usersListEl.innerHTML = "";
-  Object.keys(labelToPerson).sort().forEach(label => usersListEl.appendChild(new Option(label,label)));
+function peopleLabels(){ return knownPeople.map(personLabel); }
+
+function renderSuggestions(){
+  const typed = userInput.value.trim();
+  suggestionsEl.innerHTML = "";
+  if(!typed){ suggestionsEl.style.display="none"; return; }
+
+  const matches = peopleLabels().filter(l => l.startsWith(typed)).slice(0, 8);
+  if(!matches.length){ suggestionsEl.style.display="none"; return; }
+
+  matches.forEach(label => {
+    const item = document.createElement("div");
+    item.className = "sugg-item";
+    item.textContent = label;
+    item.addEventListener("mousedown", (e) => { // mousedown fires before input's blur
+      e.preventDefault();
+      userInput.value = label;
+      suggestionsEl.style.display = "none";
+      updateUserNote();
+    });
+    suggestionsEl.appendChild(item);
+  });
+  suggestionsEl.style.display = "block";
 }
+
+userInput.addEventListener("blur", () => setTimeout(()=>{ suggestionsEl.style.display="none"; }, 120));
+userInput.addEventListener("focus", renderSuggestions);
 
 function updateUserNote(){
   const typed = userInput.value.trim();
+  renderSuggestions();
+
   if(!typed){ userNote.textContent=""; userNote.className=""; registerFields.style.display="none"; confirmUserBtn.disabled=true; confirmUserBtn.textContent="בחר"; return; }
 
   if(labelToPerson[typed]){
@@ -275,7 +310,8 @@ function updateUserNote(){
     return;
   }
 
-  if(isAdminNameLike(safeUsername(typed))){
+  if(isAdminNameLike(typed)){
+    // Typed something admin-shaped but not an exact known admin name — still block registering as it.
     userNote.textContent = "שם זה שמור למנהל ולא ניתן להירשם אליו.";
     userNote.className = "new"; registerFields.style.display="none"; confirmUserBtn.disabled=true;
     return;
@@ -289,7 +325,7 @@ function isValidTzevetValue(){ const n=Number(tzevetInput.value); return Number.
 plugahSelect.addEventListener("change", updateUserNote);
 tzevetInput.addEventListener("input", updateUserNote);
 userInput.addEventListener("input", updateUserNote);
-userInput.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); confirmUser(); } });
+userInput.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); suggestionsEl.style.display="none"; confirmUser(); } });
 confirmUserBtn.addEventListener("click", confirmUser);
 switchUserBtn.addEventListener("click", showPicker);
 
@@ -311,7 +347,7 @@ async function confirmUser(){
     if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
     const person = { id:result.id, name:result.name, plugah:result.plugah, tzevet:result.tzevet, isAdmin:false };
     knownPeople.push(person);
-    buildLabelIndex(); renderUserDatalist();
+    buildLabelIndex();
     registerFields.style.display="none"; plugahSelect.value=""; tzevetInput.value="";
     selectPerson(person);
   }catch(e){ setStatus("שגיאה ברישום המשתמש: "+e.message,"err"); confirmUserBtn.disabled=false; }
@@ -326,7 +362,7 @@ function selectPerson(person){
     : null;
   myPlugah = person.isAdmin ? (myAdminScope.plugah || null) : person.plugah;
 
-  runTarget=null; runState = myAdminScope ? "admin" : "idle"; runStartMs=null; stopClock();
+  runTarget=null; runState = myAdminScope ? "admin" : "idle"; runStartMs=null; selfStartAllowed=true; stopClock();
   lastHandledSignalIssuedAt = null; hideCountdown();
   if(adminCountdownTimer){ clearInterval(adminCountdownTimer); adminCountdownTimer=null; }
   adminCountdownEl.textContent = "";
@@ -391,7 +427,7 @@ async function loadUsers(){
     const data = await res.json();
     knownAdmins = data.admins || [];
     knownPeople = data.people || [];
-    buildLabelIndex(); renderUserDatalist();
+    buildLabelIndex();
 
     const savedId = localStorage.getItem("liveloc_user_id");
     if(savedId){
@@ -451,7 +487,11 @@ async function refreshMyState(){
   try{
     const res = await fetch(WORKER_URL+"/api/mystate?user="+encodeURIComponent(myUser));
     const data = await res.json();
-    if(data.target){ runTarget=data.target; runState=data.state; applyRunTimer(data.current); applyRunGating(); }
+    if(data.target){
+      runTarget=data.target; runState=data.state;
+      selfStartAllowed = data.selfStartAllowed !== false;
+      applyRunTimer(data.current); applyRunGating();
+    }
   }catch(e){}
 }
 function applyRunTimer(current){
@@ -468,6 +508,13 @@ function applyRunGating(){
 
   if(!myPos || !accuracyIsGood()){ sendBtn.disabled=true; return; }
   if(!runTarget){ sendBtn.disabled=true; sendBtn.textContent="טוען מצב…"; runDistanceEl.textContent=""; return; }
+
+  if(runTarget==="start" && runState==="idle" && !selfStartAllowed){
+    sendBtn.disabled = true;
+    sendBtn.textContent = "ממתינים להזנקה";
+    runDistanceEl.textContent = "רק מפקד יכול להתחיל עבורכם את הריצה";
+    return;
+  }
 
   sendBtn.textContent = RUN_BUTTON_LABEL[runState] || RUN_BUTTON_LABEL.idle;
   const targetLabel = runTarget==="start" ? "Start" : "Middle";
@@ -492,9 +539,14 @@ async function sendCheckIn(){
     if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
 
     if(result.near) setStatus(`✅ נרשם: ${result.near.point} — ${result.near.timestamp}`,"ok");
+    else if(result.selfStartBlocked) setStatus("רק מפקד יכול להתחיל עבורכם את הריצה — המתינו להזנקה.","err");
     else setStatus("לא היית בטווח — נסו שוב כשתתקרבו.","err");
 
-    if(result.target){ runTarget=result.target; runState=result.state; applyRunTimer(result.current); }
+    if(result.target){
+      runTarget=result.target; runState=result.state;
+      if(typeof result.selfStartBlocked === "boolean" && result.selfStartBlocked) selfStartAllowed=false;
+      applyRunTimer(result.current);
+    }
     await refreshCheckpoints();
     applyRunGating();
     return result;
@@ -546,8 +598,8 @@ async function loadCheckpointSource(){
     const data = await res.json();
     checkpointPositions = { start:data.start||null, middle:data.middle||null };
     renderCheckpointsOnMap();
-    const radios = document.querySelectorAll('input[name="cpSource"]');
-    radios.forEach(r => r.checked = (r.value === (data.source || "global")));
+    document.querySelectorAll('input[name="cpSource"]').forEach(r => r.checked = (r.value === (data.source || "global")));
+    document.querySelectorAll('input[name="selfStart"]').forEach(r => r.checked = (r.value === (data.selfStart===false ? "off" : "on")));
   }catch(e){}
 }
 document.querySelectorAll('input[name="cpSource"]').forEach(radio=>{
@@ -564,6 +616,20 @@ document.querySelectorAll('input[name="cpSource"]').forEach(radio=>{
     }catch(e){ cpStatus.textContent = "שגיאה: "+e.message; }
   });
 });
+document.querySelectorAll('input[name="selfStart"]').forEach(radio=>{
+  radio.addEventListener("change", async (e)=>{
+    if(!e.target.checked) return;
+    const allowed = e.target.value === "on";
+    cpStatus.textContent = "מעדכן...";
+    try{
+      const res = await fetch(WORKER_URL+"/api/set-self-start",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({user:myUser, allowed})});
+      const result = await res.json();
+      if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
+      cpStatus.textContent = allowed ? "הפלוגה יכולה להתחיל ריצה בעצמה." : "הפלוגה תמתין להזנקה כדי להתחיל.";
+    }catch(e){ cpStatus.textContent = "שגיאה: "+e.message; }
+  });
+});
 
 signalBtn.addEventListener("click", async ()=>{
   const seconds = Number(signalSeconds.value);
@@ -577,6 +643,19 @@ signalBtn.addEventListener("click", async ()=>{
     runAdminCountdown(result.issuedAt + result.seconds*1000);
   }catch(e){ cpStatus.textContent = "שגיאה: "+e.message; }
   finally{ signalBtn.disabled=false; }
+});
+
+cancelSignalBtn.addEventListener("click", async ()=>{
+  cancelSignalBtn.disabled = true;
+  try{
+    const res = await fetch(WORKER_URL+"/api/cancel-signal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:myUser})});
+    const result = await res.json();
+    if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
+    if(adminCountdownTimer){ clearInterval(adminCountdownTimer); adminCountdownTimer=null; }
+    adminCountdownEl.textContent = "ההזנקה בוטלה.";
+    setTimeout(()=>{ adminCountdownEl.textContent=""; }, 2500);
+  }catch(e){ cpStatus.textContent = "שגיאה בביטול: "+e.message; }
+  finally{ cancelSignalBtn.disabled=false; }
 });
 
 // Small, non-blocking countdown shown to the admin (the map stays fully visible).
@@ -617,7 +696,21 @@ function runCountdown(deadline){
   showCountdown();
   countdownLabel.textContent = "הזנקה — התכוננו!";
   if(countdownTimer) clearInterval(countdownTimer);
+  let tick = 0;
   countdownTimer = setInterval(async ()=>{
+    tick++;
+    if(tick % 10 === 0){ // ~ once a second: check the signal is still live (admin may have cancelled it)
+      try{
+        const res = await fetch(WORKER_URL+"/api/signal?plugah="+encodeURIComponent(myPlugah||""), {cache:"no-store"});
+        const data = await res.json();
+        if(!data.signal || data.signal.issuedAt !== lastHandledSignalIssuedAt){
+          clearInterval(countdownTimer); countdownTimer=null;
+          hideCountdown();
+          setStatus("ההזנקה בוטלה על ידי המפקד.","err");
+          return;
+        }
+      }catch(e){}
+    }
     const remaining = Math.ceil((deadline - Date.now())/1000);
     if(remaining > 0){
       countdownNumber.textContent = remaining;
