@@ -12,7 +12,8 @@
   header{ padding:14px 14px 8px; display:flex; align-items:center; justify-content:space-between; max-width:600px; margin:auto; }
   h1{ margin:0; font-size:20px; }
   .results{ color:var(--accent); text-decoration:none; font-size:13px; }
-  .wrap{ max-width:600px; margin:auto; padding:0 12px 18px; padding-bottom:132px; }
+  .wrap{ max-width:600px; margin:auto; padding:0 12px 18px; }
+  .wrap.with-actionbar{ padding-bottom:132px; }
 
   /* user picker */
   .user-row{ display:flex; gap:8px; margin-bottom:8px; }
@@ -29,6 +30,7 @@
   #plugahSelect{ flex:0 0 90px; padding:9px 10px; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; }
   #tzevetInput{ flex:1; min-width:0; padding:9px 10px; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; }
 
+  /* single accuracy readout, shown for both admin and runner */
   .location-box{ background:var(--card); border:1px solid var(--line); border-radius:9px; padding:7px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
   .location-title{ color:var(--muted); font-size:12px; }
   #accuracyValue{ font-size:13px; font-weight:700; white-space:nowrap; }
@@ -39,26 +41,30 @@
   #status.err{ color:var(--danger); }
   #status.ok{ color:var(--ok); font-weight:700; }
 
-  .map-box{ overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--card); }
-  #map{ width:100%; height:420px; }
-  .leaflet-container{ font-family:Calibri,Arial,sans-serif; }
-  .my-marker{ width:18px; height:18px; border-radius:50%; background:var(--accent); border:3px solid white; box-shadow:0 0 0 3px rgba(53,208,160,.28); }
-  .cp-marker{ width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 1px 5px rgba(0,0,0,.5); }
-  .leaflet-popup-content{ direction:rtl; text-align:right; font-family:Calibri,Arial,sans-serif; }
-
-  /* admin panel */
+  /* admin panel (map lives here — admin only) */
   .admin-box{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
   .admin-box h3{ margin:0 0 10px; font-size:15px; }
   .admin-row{ display:flex; gap:8px; margin-bottom:10px; }
   .admin-row button{ flex:1; padding:12px; border-radius:9px; border:0; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
   .cp-start{ background:var(--accent); color:#04231a; }
   .cp-middle{ background:#3b82f6; color:#fff; }
-  .signal-row{ display:flex; gap:8px; }
+  .signal-row{ display:flex; gap:8px; margin-bottom:8px; }
   .signal-row input{ flex:0 0 90px; padding:10px; border-radius:9px; background:var(--bg); color:var(--text); border:1px solid var(--line); font-size:14px; font-family:inherit; }
   .signal-row button{ flex:1; padding:10px; border-radius:9px; border:0; background:#f59e0b; color:#221600; font-weight:700; font-family:inherit; font-size:14px; cursor:pointer; }
   .cp-status{ font-size:12px; color:var(--muted); margin-top:8px; }
+  #adminCountdown{ font-size:14px; font-weight:700; color:var(--accent); min-height:18px; margin-top:6px; }
+  .source-row{ display:flex; gap:8px; margin-bottom:8px; font-size:13px; }
+  .source-row label{ flex:1; display:flex; align-items:center; gap:6px; background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:8px 10px; cursor:pointer; }
+  .source-row input{ accent-color:var(--accent); }
 
-  /* fixed action bar (runners) */
+  .map-box{ overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+  #map{ width:100%; height:380px; }
+  .leaflet-container{ font-family:Calibri,Arial,sans-serif; }
+  .my-marker{ width:18px; height:18px; border-radius:50%; background:var(--accent); border:3px solid white; box-shadow:0 0 0 3px rgba(53,208,160,.28); }
+  .cp-marker{ width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 1px 5px rgba(0,0,0,.5); }
+  .leaflet-popup-content{ direction:rtl; text-align:right; font-family:Calibri,Arial,sans-serif; }
+
+  /* fixed action bar (runners only) */
   #actionBar{ position:fixed; left:0; right:0; bottom:0; z-index:50; background:var(--card); border-top:1px solid var(--line); padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px)); max-width:600px; margin:0 auto; box-shadow:0 -4px 16px rgba(0,0,0,.35); }
   #runInfo{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px; }
   #runTimer{ font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
@@ -68,8 +74,8 @@
   #sendBtn:disabled{ opacity:.5; cursor:default; }
   #stopBtn{ display:none; flex:0 0 auto; border:1px solid var(--danger); background:none; color:var(--danger); border-radius:9px; padding:12px 14px; font-family:inherit; font-size:13px; cursor:pointer; }
 
-  /* countdown overlay */
-  #countdownOverlay{ display:none; position:fixed; inset:0; z-index:200; background:rgba(5,10,20,.94); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; }
+  /* fullscreen countdown — runners only, so nothing (no map) sits behind it */
+  #countdownOverlay{ display:none; position:fixed; inset:0; z-index:99999; background:rgba(5,10,20,.96); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; }
   #countdownOverlay.show{ display:flex; }
   #countdownNumber{ font-size:110px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; line-height:1; }
   #countdownLabel{ font-size:18px; color:var(--muted); margin-top:10px; }
@@ -82,7 +88,7 @@
   <a class="results" href="results.html">🏁 תוצאות</a>
 </header>
 
-<div class="wrap">
+<div class="wrap" id="wrap">
 
   <div id="pickerBlock">
     <div class="user-row">
@@ -106,7 +112,15 @@
     <button id="switchUserBtn">החלף</button>
   </div>
 
-  <!-- ADMIN PANEL -->
+  <div id="geoBlock" style="display:none">
+    <div class="location-box">
+      <span class="location-title">מיקום</span>
+      <span id="accuracyValue">מאתר…</span>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <!-- ADMIN PANEL (map lives here — admin only) -->
   <div id="adminBlock" style="display:none">
     <div class="admin-box">
       <h3 id="adminTitle">ניהול נקודות ציון</h3>
@@ -114,25 +128,27 @@
         <button id="setStartBtn" class="cp-start">📍 קבע כאן Start</button>
         <button id="setMiddleBtn" class="cp-middle">📍 קבע כאן Middle</button>
       </div>
+
+      <div id="sourceBlock" style="display:none">
+        <div class="source-row">
+          <label><input type="radio" name="cpSource" value="global"> נקודות גדודיות (ברירת מחדל)</label>
+          <label><input type="radio" name="cpSource" value="own"> נקודות הפלוגה שלי</label>
+        </div>
+      </div>
+
       <div class="cp-status" id="cpStatus"></div>
     </div>
+
     <div class="admin-box">
       <h3>🚦 הזנקה</h3>
       <div class="signal-row">
         <input id="signalSeconds" type="number" min="1" max="600" value="20">
         <button id="signalBtn">הזנק!</button>
       </div>
-      <div class="cp-status">כל רץ אידיאלי (עדיין לא התחיל) שנמצא בטווח 20 מ׳ מ-Start כשהספירה מגיעה לאפס, יתחיל ריצה אוטומטית.</div>
+      <div class="cp-status">כל רץ אידיאלי (עדיין לא התחיל) שנמצא בטווח 20 מ׳ מ-Start כשהספירה מגיעה לאפס, יתחיל ריצה אוטומטית. האמצע והסיום נשארים תמיד ביד הרץ.</div>
+      <div id="adminCountdown"></div>
     </div>
-  </div>
 
-  <!-- RUNNER MAP -->
-  <div id="runnerBlock" style="display:none">
-    <div class="location-box">
-      <span class="location-title">מיקום</span>
-      <span id="accuracyValue">מאתר…</span>
-    </div>
-    <div id="status"></div>
     <div class="map-box"><div id="map"></div></div>
   </div>
 
@@ -162,58 +178,54 @@ const REFRESH_INTERVAL = 5000;
 
 const $ = id => document.getElementById(id);
 
+const wrapEl = $("wrap");
 const userInput = $("userInput"), usersListEl = $("usersList"), confirmUserBtn = $("confirmUserBtn"), userNote = $("userNote");
 const pickerBlock = $("pickerBlock"), activeUserBlock = $("activeUserBlock"), activeUserName = $("activeUserName"), switchUserBtn = $("switchUserBtn");
 const registerFields = $("registerFields"), plugahSelect = $("plugahSelect"), tzevetInput = $("tzevetInput");
+const geoBlock = $("geoBlock"), accuracyValue = $("accuracyValue"), statusEl = $("status");
 const adminBlock = $("adminBlock"), adminTitle = $("adminTitle"), setStartBtn = $("setStartBtn"), setMiddleBtn = $("setMiddleBtn"), cpStatus = $("cpStatus");
+const sourceBlock = $("sourceBlock"), adminCountdownEl = $("adminCountdown");
 const signalSeconds = $("signalSeconds"), signalBtn = $("signalBtn");
-const runnerBlock = $("runnerBlock"), accuracyValue = $("accuracyValue"), statusEl = $("status");
 const actionBar = $("actionBar"), sendBtn = $("sendBtn"), stopBtn = $("stopBtn"), runTimerEl = $("runTimer"), runDistanceEl = $("runDistance");
 const countdownOverlay = $("countdownOverlay"), countdownNumber = $("countdownNumber"), countdownLabel = $("countdownLabel");
 
-let knownUsers = [], knownMeta = {};
-let myUser = localStorage.getItem("liveloc_user") || "";
-let myAdminScope = null; // { scope:"platoon", plugah } | { scope:"battalion" } | null
-let myPlugah = null;
+let knownAdmins = [], knownPeople = [], labelToPerson = {};
+let myUser = null, myAdminScope = null, myPlugah = null;
 
-let myPos = null, watchId = null, map = null, myMarker = null, myAccuracyCircle = null, firstLocation = true;
+let myPos = null, watchId = null, map = null, mapReady = false, myMarker = null, myAccuracyCircle = null, firstLocation = true;
 let cpMarkers = {};
 let checkpointPositions = {};
 let runTarget = null, runState = "idle", runStartMs = null;
-let stateTimer = null, clockTimer = null;
+let stateTimer = null, clockTimer = null, adminCountdownTimer = null;
 let lastHandledSignalIssuedAt = null, countdownTimer = null;
 
-/* ===================== helpers ===================== */
+/* ===================== small helpers ===================== */
 
 const radians = x => x * Math.PI / 180;
 function distanceKm(a,b,c,d){
   const x = Math.sin(radians(c-a)/2)**2 + Math.cos(radians(a))*Math.cos(radians(c))*Math.sin(radians(d-b)/2)**2;
   return 2*6371*Math.asin(Math.sqrt(x));
 }
-function colorFor(name){ let h=0; for(const c of String(name)) h=(h*31+c.charCodeAt(0))>>>0; return `hsl(${h%360} 70% 60%)`; }
 function escapeHtml(t){ return String(t).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
 function setStatus(t, cls=""){ statusEl.textContent = t; statusEl.className = cls; }
-function safeUsername(u){ return String(u||"").replace(/[^a-zA-Z0-9_\u05D0-\u05EA-]/g,"").slice(0,40); }
-function isAdminName(u){ return u === "admin_גדוד" || /^admin_[\u05D0-\u05D6]$/.test(u); }
+function safeUsername(u){ return String(u||"").replace(/[^a-zA-Z0-9_\u05D0-\u05EA \-]/g,"").replace(/\s+/g," ").trim().slice(0,60); }
+function isAdminNameLike(u){ return u === "admin_גדוד" || /^admin_[\u05D0-\u05D6]$/.test(u); }
+function formatElapsed(ms){ const total = Math.max(0, Math.floor(ms/1000)); return String(Math.floor(total/60)).padStart(2,"0") + ":" + String(total%60).padStart(2,"0"); }
 
-function formatElapsed(ms){
-  const total = Math.max(0, Math.floor(ms/1000));
-  return String(Math.floor(total/60)).padStart(2,"0") + ":" + String(total%60).padStart(2,"0");
-}
-
-/* ===================== map ===================== */
+/* ===================== map (admin only) ===================== */
 
 function initMap(){
   map = L.map("map",{zoomControl:true}).setView([31.8,35.0],8);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
     maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(map);
+  mapReady = true;
 }
 function myIcon(){ return L.divIcon({className:"",html:'<div class="my-marker"></div>',iconSize:[18,18],iconAnchor:[9,9]}); }
 function cpIcon(color){ return L.divIcon({className:"",html:`<div class="cp-marker" style="background:${color}"></div>`,iconSize:[16,16],iconAnchor:[8,8]}); }
 
 function updateMyLocationOnMap(){
-  if(!myPos) return;
+  if(!myPos || !mapReady) return;
   const latlng=[myPos.lat,myPos.lon];
   if(!myMarker){ myMarker=L.marker(latlng,{icon:myIcon(),zIndexOffset:1000}).addTo(map); myMarker.bindPopup(""); }
   else myMarker.setLatLng(latlng);
@@ -224,6 +236,7 @@ function updateMyLocationOnMap(){
 }
 
 function renderCheckpointsOnMap(){
+  if(!mapReady) return;
   for(const point of ["start","middle"]){
     const pos = checkpointPositions[point];
     if(!pos){
@@ -237,28 +250,40 @@ function renderCheckpointsOnMap(){
   }
 }
 
-/* ===================== user picker ===================== */
+/* ===================== user picker (supports duplicate names) ===================== */
+
+function personLabel(p){ return `${p.name} (פלוגה ${p.plugah}, צוות ${p.tzevet})`; }
+
+function buildLabelIndex(){
+  labelToPerson = {};
+  knownAdmins.forEach(a => labelToPerson[a] = { id:a, name:a, isAdmin:true });
+  knownPeople.forEach(p => labelToPerson[personLabel(p)] = { ...p, isAdmin:false });
+}
 
 function renderUserDatalist(){
   usersListEl.innerHTML = "";
-  knownUsers.forEach(u => usersListEl.appendChild(new Option(u,u)));
+  Object.keys(labelToPerson).sort().forEach(label => usersListEl.appendChild(new Option(label,label)));
 }
 
 function updateUserNote(){
-  const typed = safeUsername(userInput.value);
+  const typed = userInput.value.trim();
   if(!typed){ userNote.textContent=""; userNote.className=""; registerFields.style.display="none"; confirmUserBtn.disabled=true; confirmUserBtn.textContent="בחר"; return; }
-  if(isAdminName(typed) && !knownUsers.includes(typed)){
-    userNote.textContent = "שם זה שמור למנהל ולא ניתן להירשם אליו.";
-    userNote.className = "new"; registerFields.style.display="none"; confirmUserBtn.disabled=true; return;
-  }
-  if(knownUsers.includes(typed)){
+
+  if(labelToPerson[typed]){
     userNote.textContent=""; userNote.className=""; registerFields.style.display="none";
     confirmUserBtn.disabled=false; confirmUserBtn.textContent="בחר";
-  }else{
-    userNote.textContent = `"${typed}" עוד לא רשום — מלאו פלוגה וצוות ולחצו הרשם`;
-    userNote.className = "new"; registerFields.style.display="flex"; confirmUserBtn.textContent="הרשם";
-    confirmUserBtn.disabled = !(plugahSelect.value && isValidTzevetValue());
+    return;
   }
+
+  if(isAdminNameLike(safeUsername(typed))){
+    userNote.textContent = "שם זה שמור למנהל ולא ניתן להירשם אליו.";
+    userNote.className = "new"; registerFields.style.display="none"; confirmUserBtn.disabled=true;
+    return;
+  }
+
+  userNote.textContent = `"${typed}" לא נמצא — מלאו פלוגה וצוות ולחצו הרשם (גם אם השם כבר תפוס אצל מישהו אחר, זה בסדר)`;
+  userNote.className = "new"; registerFields.style.display="flex"; confirmUserBtn.textContent="הרשם";
+  confirmUserBtn.disabled = !(plugahSelect.value && isValidTzevetValue());
 }
 function isValidTzevetValue(){ const n=Number(tzevetInput.value); return Number.isInteger(n)&&n>=1&&n<=30; }
 plugahSelect.addEventListener("change", updateUserNote);
@@ -269,51 +294,65 @@ confirmUserBtn.addEventListener("click", confirmUser);
 switchUserBtn.addEventListener("click", showPicker);
 
 async function confirmUser(){
-  const typed = safeUsername(userInput.value);
+  const typed = userInput.value.trim();
   if(!typed) return;
   confirmUserBtn.disabled = true;
-  if(!knownUsers.includes(typed)){
-    const plugah = plugahSelect.value, tzevet = tzevetInput.value;
-    if(!plugah || !isValidTzevetValue()){ setStatus("יש לבחור פלוגה (א-ז) ולהזין צוות (1-30).","err"); confirmUserBtn.disabled=false; return; }
-    try{
-      const res = await fetch(WORKER_URL+"/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:typed,plugah,tzevet})});
-      const result = await res.json();
-      if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
-      knownUsers.push(typed); knownUsers.sort();
-      knownMeta[typed] = {plugah, tzevet:String(tzevet)};
-      renderUserDatalist();
-      registerFields.style.display="none"; plugahSelect.value=""; tzevetInput.value="";
-    }catch(e){ setStatus("שגיאה ברישום המשתמש: "+e.message,"err"); confirmUserBtn.disabled=false; return; }
-  }
-  selectUser(typed);
+
+  const existing = labelToPerson[typed];
+  if(existing){ selectPerson(existing); return; }
+
+  const name = safeUsername(typed);
+  const plugah = plugahSelect.value, tzevet = tzevetInput.value;
+  if(!name || !plugah || !isValidTzevetValue()){ setStatus("יש למלא שם, פלוגה (א-ז) וצוות (1-30).","err"); confirmUserBtn.disabled=false; return; }
+
+  try{
+    const res = await fetch(WORKER_URL+"/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:name,plugah,tzevet})});
+    const result = await res.json();
+    if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
+    const person = { id:result.id, name:result.name, plugah:result.plugah, tzevet:result.tzevet, isAdmin:false };
+    knownPeople.push(person);
+    buildLabelIndex(); renderUserDatalist();
+    registerFields.style.display="none"; plugahSelect.value=""; tzevetInput.value="";
+    selectPerson(person);
+  }catch(e){ setStatus("שגיאה ברישום המשתמש: "+e.message,"err"); confirmUserBtn.disabled=false; }
 }
 
-function selectUser(name){
-  myUser = name;
-  localStorage.setItem("liveloc_user", myUser);
-  myAdminScope = isAdminName(name) ? (name==="admin_גדוד" ? {scope:"battalion"} : {scope:"platoon", plugah:name.split("_")[1]}) : null;
-  myPlugah = myAdminScope ? (myAdminScope.plugah || null) : (knownMeta[name] ? knownMeta[name].plugah : null);
+function selectPerson(person){
+  myUser = person.id;
+  localStorage.setItem("liveloc_user_id", person.id);
+
+  myAdminScope = person.isAdmin
+    ? (person.id==="admin_גדוד" ? {scope:"battalion"} : {scope:"platoon", plugah:person.id.split("_")[1]})
+    : null;
+  myPlugah = person.isAdmin ? (myAdminScope.plugah || null) : person.plugah;
 
   runTarget=null; runState = myAdminScope ? "admin" : "idle"; runStartMs=null; stopClock();
-  lastHandledSignalIssuedAt = null;
-  hideCountdown();
+  lastHandledSignalIssuedAt = null; hideCountdown();
+  if(adminCountdownTimer){ clearInterval(adminCountdownTimer); adminCountdownTimer=null; }
+  adminCountdownEl.textContent = "";
 
   pickerBlock.style.display="none";
   activeUserBlock.style.display="block";
-  const m = knownMeta[name];
-  activeUserName.textContent = m ? `${name} (פלוגה ${m.plugah}, צוות ${m.tzevet})` : name;
+  activeUserName.textContent = person.isAdmin ? person.name : personLabel(person);
+
+  geoBlock.style.display="block";
+  accuracyValue.textContent="מאתר…"; accuracyValue.className="";
+  setStatus("");
 
   if(stateTimer){ clearInterval(stateTimer); stateTimer=null; }
 
   if(myAdminScope){
     adminBlock.style.display="block";
-    runnerBlock.style.display="none";
+    wrapEl.classList.remove("with-actionbar");
     actionBar.style.display="none";
     adminTitle.textContent = myAdminScope.scope==="battalion" ? "ניהול נקודות ציון — כל הגדוד" : `ניהול נקודות ציון — פלוגה ${myAdminScope.plugah}`;
-    startAdminLocationWatch();
+    sourceBlock.style.display = myAdminScope.scope==="platoon" ? "block" : "none";
+    startLocationWatch();
+    if(myAdminScope.scope==="platoon") loadCheckpointSource();
+    setTimeout(()=>{ if(map) map.invalidateSize(); }, 60);
   }else{
     adminBlock.style.display="none";
-    runnerBlock.style.display="block";
+    wrapEl.classList.add("with-actionbar");
     actionBar.style.display="block";
     startLocationWatch();
     refreshMyState();
@@ -325,17 +364,22 @@ function selectUser(name){
 function showPicker(){
   stopLocationWatch();
   if(stateTimer){ clearInterval(stateTimer); stateTimer=null; }
+  if(adminCountdownTimer){ clearInterval(adminCountdownTimer); adminCountdownTimer=null; }
   hideCountdown();
-  myUser=""; myAdminScope=null; myPlugah=null;
-  localStorage.removeItem("liveloc_user");
+
+  myUser=null; myAdminScope=null; myPlugah=null;
+  localStorage.removeItem("liveloc_user_id");
   myPos=null; firstLocation=true;
   runTarget=null; runState="idle"; runStartMs=null; stopClock();
 
-  accuracyValue.textContent="בחר משתמש"; accuracyValue.className="";
   sendBtn.disabled=true; sendBtn.textContent="שלח מרחק"; stopBtn.style.display="none";
   setStatus("");
 
-  activeUserBlock.style.display="none"; adminBlock.style.display="none"; runnerBlock.style.display="none"; actionBar.style.display="none";
+  activeUserBlock.style.display="none";
+  geoBlock.style.display="none";
+  adminBlock.style.display="none";
+  wrapEl.classList.remove("with-actionbar");
+  actionBar.style.display="none";
   pickerBlock.style.display="block";
   userInput.value=""; updateUserNote(); userInput.focus();
 }
@@ -345,23 +389,30 @@ async function loadUsers(){
     const res = await fetch(WORKER_URL+"/api/users");
     if(!res.ok) throw new Error("HTTP "+res.status);
     const data = await res.json();
-    knownUsers = (data.users||[]).slice().sort();
-    knownMeta = data.meta || {};
-    renderUserDatalist();
-    if(myUser && knownUsers.includes(myUser)) selectUser(myUser);
-    else showPicker();
+    knownAdmins = data.admins || [];
+    knownPeople = data.people || [];
+    buildLabelIndex(); renderUserDatalist();
+
+    const savedId = localStorage.getItem("liveloc_user_id");
+    if(savedId){
+      const found = knownAdmins.includes(savedId)
+        ? { id:savedId, name:savedId, isAdmin:true }
+        : knownPeople.find(p => p.id===savedId);
+      if(found){ selectPerson(found); return; }
+    }
+    showPicker();
   }catch(e){ setStatus("שגיאה בטעינת המשתמשים.","err"); showPicker(); }
 }
 
-/* ===================== runner: accuracy + geolocation ===================== */
+/* ===================== geolocation (shared by admin + runner) ===================== */
 
 function accuracyIsGood(){ return myPos && Number.isFinite(myPos.accuracy) && myPos.accuracy<=ACCURACY_LIMIT; }
 
 function updateAccuracyUI(){
-  if(!myPos){ accuracyValue.textContent="מאתר…"; accuracyValue.className=""; return; }
+  if(!myPos){ accuracyValue.textContent="מאתר…"; accuracyValue.className=""; applyRunGating(); return; }
   const acc = Math.round(myPos.accuracy);
-  if(myPos.accuracy<=ACCURACY_LIMIT){ accuracyValue.textContent=`±${acc} מ׳`; accuracyValue.className="good"; }
-  else{ accuracyValue.textContent=`±${acc} מ׳`; accuracyValue.className="bad"; setStatus(`הדיוק כרגע ±${acc} מ׳ — נדרש ≤${ACCURACY_LIMIT} מ׳`,"err"); }
+  accuracyValue.textContent = `±${acc} מ׳`;
+  accuracyValue.className = myPos.accuracy<=ACCURACY_LIMIT ? "good" : "bad";
   applyRunGating();
 }
 
@@ -369,21 +420,16 @@ function startLocationWatch(){
   stopLocationWatch();
   if(!navigator.geolocation){ accuracyValue.textContent="לא נתמך"; setStatus("הדפדפן לא תומך במיקום.","err"); return; }
   myPos=null; firstLocation=true; updateAccuracyUI();
-  setStatus("ממתין למיקום מדויק…");
   watchId = navigator.geolocation.watchPosition(pos=>{
     myPos = {lat:pos.coords.latitude, lon:pos.coords.longitude, accuracy:pos.coords.accuracy};
     updateMyLocationOnMap();
     updateAccuracyUI();
-    if(accuracyIsGood()) setStatus(`דיוק מספיק — ±${Math.round(myPos.accuracy)} מ׳`,"ok");
   }, err=>{
-    if(err.code===err.PERMISSION_DENIED){ accuracyValue.textContent="אין הרשאה"; setStatus("יש לאשר הרשאת מיקום מדויקת.","err"); }
-    else{ accuracyValue.textContent="שגיאה"; setStatus("שגיאת מיקום: "+err.message,"err"); }
+    if(err.code===err.PERMISSION_DENIED) setStatus("יש לאשר הרשאת מיקום מדויקת.","err");
+    else setStatus("שגיאת מיקום: "+err.message,"err");
   }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
 }
 function stopLocationWatch(){ if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
-
-/* admin uses the same watch, but no run-gating */
-function startAdminLocationWatch(){ startLocationWatch(); }
 
 /* ===================== checkpoints (runner) ===================== */
 
@@ -392,12 +438,11 @@ async function refreshCheckpoints(){
     const res = await fetch(WORKER_URL+"/api/checkpoints?plugah="+encodeURIComponent(myPlugah||""), {cache:"no-store"});
     const data = await res.json();
     checkpointPositions = { start: data.start || null, middle: data.middle || null };
-    if(map) renderCheckpointsOnMap();
     applyRunGating();
-  }catch(e){ /* keep last known */ }
+  }catch(e){}
 }
 
-/* ===================== run state / timer ===================== */
+/* ===================== run state / timer (runner) ===================== */
 
 const RUN_BUTTON_LABEL = { idle:"התחל ריצה", started:"הגעתי לאמצע!", middle:"סיים ריצה" };
 
@@ -409,7 +454,6 @@ async function refreshMyState(){
     if(data.target){ runTarget=data.target; runState=data.state; applyRunTimer(data.current); applyRunGating(); }
   }catch(e){}
 }
-
 function applyRunTimer(current){
   if(current && current.start){ runStartMs = Date.parse(current.start); startClock(); }
   else{ runStartMs=null; stopClock(); }
@@ -422,7 +466,7 @@ function applyRunGating(){
   runTimerEl.textContent = runStartMs==null ? "00:00" : formatElapsed(Date.now()-runStartMs);
   stopBtn.style.display = (runState==="started"||runState==="middle") ? "block" : "none";
 
-  if(!myPos || !accuracyIsGood()) return;
+  if(!myPos || !accuracyIsGood()){ sendBtn.disabled=true; return; }
   if(!runTarget){ sendBtn.disabled=true; sendBtn.textContent="טוען מצב…"; runDistanceEl.textContent=""; return; }
 
   sendBtn.textContent = RUN_BUTTON_LABEL[runState] || RUN_BUTTON_LABEL.idle;
@@ -435,12 +479,11 @@ function applyRunGating(){
   sendBtn.disabled = distM > ACCURACY_LIMIT;
 }
 
-/* ===================== send (manual) ===================== */
+/* ===================== send / stop (runner) ===================== */
 
 async function sendCheckIn(){
   if(!myUser || !myPos) return;
   sendBtn.disabled = true;
-  const prevLabel = sendBtn.textContent;
   sendBtn.textContent = "שולח…";
   try{
     const res = await fetch(WORKER_URL+"/api/location",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -478,7 +521,7 @@ stopBtn.addEventListener("click", async ()=>{
   finally{ stopBtn.disabled=false; }
 });
 
-/* ===================== admin: set checkpoint ===================== */
+/* ===================== admin: checkpoints + source + signal ===================== */
 
 function sendAdminCheckpoint(point){
   if(!myPos){ cpStatus.textContent="ממתין למיקום שלך…"; return; }
@@ -489,11 +532,38 @@ function sendAdminCheckpoint(point){
     .then(result=>{
       if(result.error) throw new Error(result.error);
       cpStatus.textContent = `${point==="start"?"Start":"Middle"} עודכן בהצלחה (±${Math.round(myPos.accuracy)} מ׳).`;
+      checkpointPositions[point] = { lat:myPos.lat, lon:myPos.lon };
+      renderCheckpointsOnMap();
     })
     .catch(e=> cpStatus.textContent = "שגיאה: "+e.message);
 }
 setStartBtn.addEventListener("click", ()=>sendAdminCheckpoint("start"));
 setMiddleBtn.addEventListener("click", ()=>sendAdminCheckpoint("middle"));
+
+async function loadCheckpointSource(){
+  try{
+    const res = await fetch(WORKER_URL+"/api/checkpoints?plugah="+encodeURIComponent(myPlugah), {cache:"no-store"});
+    const data = await res.json();
+    checkpointPositions = { start:data.start||null, middle:data.middle||null };
+    renderCheckpointsOnMap();
+    const radios = document.querySelectorAll('input[name="cpSource"]');
+    radios.forEach(r => r.checked = (r.value === (data.source || "global")));
+  }catch(e){}
+}
+document.querySelectorAll('input[name="cpSource"]').forEach(radio=>{
+  radio.addEventListener("change", async (e)=>{
+    if(!e.target.checked) return;
+    cpStatus.textContent = "מעדכן...";
+    try{
+      const res = await fetch(WORKER_URL+"/api/set-checkpoint-source",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({user:myUser, source:e.target.value})});
+      const result = await res.json();
+      if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
+      cpStatus.textContent = e.target.value==="own" ? "הפלוגה שלך תשתמש בנקודות שלה." : "הפלוגה שלך תשתמש בנקודות הגדודיות.";
+      await loadCheckpointSource();
+    }catch(e){ cpStatus.textContent = "שגיאה: "+e.message; }
+  });
+});
 
 signalBtn.addEventListener("click", async ()=>{
   const seconds = Number(signalSeconds.value);
@@ -504,12 +574,26 @@ signalBtn.addEventListener("click", async ()=>{
       body:JSON.stringify({user:myUser, seconds})});
     const result = await res.json();
     if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
-    cpStatus.textContent = `הוזנק! ספירה לאחור של ${seconds} שניות התחילה.`;
+    runAdminCountdown(result.issuedAt + result.seconds*1000);
   }catch(e){ cpStatus.textContent = "שגיאה: "+e.message; }
   finally{ signalBtn.disabled=false; }
 });
 
-/* ===================== signal polling + countdown overlay (runner) ===================== */
+// Small, non-blocking countdown shown to the admin (the map stays fully visible).
+function runAdminCountdown(deadline){
+  if(adminCountdownTimer) clearInterval(adminCountdownTimer);
+  adminCountdownTimer = setInterval(()=>{
+    const remaining = Math.ceil((deadline-Date.now())/1000);
+    if(remaining>0){ adminCountdownEl.textContent = `⏱ ${remaining} שניות עד ההזנקה`; }
+    else{
+      adminCountdownEl.textContent = "🏁 זינוק!";
+      clearInterval(adminCountdownTimer); adminCountdownTimer=null;
+      setTimeout(()=>{ adminCountdownEl.textContent=""; }, 2500);
+    }
+  }, 200);
+}
+
+/* ===================== signal polling + fullscreen countdown (runner only) ===================== */
 
 function showCountdown(){ countdownOverlay.classList.add("show"); }
 function hideCountdown(){ countdownOverlay.classList.remove("show"); if(countdownTimer){ clearInterval(countdownTimer); countdownTimer=null; } }
@@ -522,8 +606,8 @@ async function pollSignal(){
     const sig = data.signal;
     if(!sig) return;
     const deadline = sig.issuedAt + sig.seconds*1000;
-    if(Date.now() >= deadline) return; // already over
-    if(sig.issuedAt === lastHandledSignalIssuedAt) return; // already showing/handled this one
+    if(Date.now() >= deadline) return;
+    if(sig.issuedAt === lastHandledSignalIssuedAt) return;
     lastHandledSignalIssuedAt = sig.issuedAt;
     runCountdown(deadline);
   }catch(e){}
