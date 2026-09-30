@@ -69,9 +69,11 @@
 
   /* fixed action bar (runners only) */
   #actionBar{ position:fixed; left:0; right:0; bottom:0; z-index:50; background:var(--card); border-top:1px solid var(--line); padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px)); max-width:600px; margin:0 auto; box-shadow:0 -4px 16px rgba(0,0,0,.35); }
-  #runInfo{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px; }
-  #runTimer{ font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
+  #runInfo{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  #runTimer{ font-size:42px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; }
+  #runSub{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
   #runDistance{ font-size:14px; color:var(--muted); }
+  #runPace{ font-size:15px; font-weight:700; color:var(--accent); }
   #actionButtons{ display:flex; gap:8px; }
   #sendBtn{ flex:1; border:0; border-radius:9px; padding:12px; font-family:inherit; font-size:14px; font-weight:700; background:var(--accent); color:#04231a; cursor:pointer; }
   #sendBtn:disabled{ opacity:.5; cursor:default; }
@@ -165,7 +167,10 @@
 <div id="actionBar" style="display:none">
   <div id="runInfo">
     <div id="runTimer">00:00</div>
-    <div id="runDistance"></div>
+    <div id="runSub">
+      <div id="runPace"></div>
+      <div id="runDistance"></div>
+    </div>
   </div>
   <div id="actionButtons">
     <button id="sendBtn" disabled>שלח מרחק</button>
@@ -194,7 +199,7 @@ const geoBlock = $("geoBlock"), accuracyValue = $("accuracyValue"), statusEl = $
 const adminBlock = $("adminBlock"), adminTitle = $("adminTitle"), setStartBtn = $("setStartBtn"), setMiddleBtn = $("setMiddleBtn"), cpStatus = $("cpStatus");
 const sourceBlock = $("sourceBlock"), adminCountdownEl = $("adminCountdown");
 const signalSeconds = $("signalSeconds"), signalBtn = $("signalBtn"), cancelSignalBtn = $("cancelSignalBtn");
-const actionBar = $("actionBar"), sendBtn = $("sendBtn"), stopBtn = $("stopBtn"), runTimerEl = $("runTimer"), runDistanceEl = $("runDistance");
+const actionBar = $("actionBar"), sendBtn = $("sendBtn"), stopBtn = $("stopBtn"), runTimerEl = $("runTimer"), runDistanceEl = $("runDistance"), runPaceEl = $("runPace");
 const countdownOverlay = $("countdownOverlay"), countdownNumber = $("countdownNumber"), countdownLabel = $("countdownLabel");
 
 let knownAdmins = [], knownPeople = [], labelToPerson = {};
@@ -203,7 +208,7 @@ let myUser = null, myAdminScope = null, myPlugah = null;
 let myPos = null, watchId = null, map = null, mapReady = false, myMarker = null, myAccuracyCircle = null, firstLocation = true;
 let cpMarkers = {};
 let checkpointPositions = {};
-let runTarget = null, runState = "idle", runStartMs = null, selfStartAllowed = true;
+let runTarget = null, runState = "idle", runStartMs = null, legStartMs = null, selfStartAllowed = true;
 let stateTimer = null, clockTimer = null, adminCountdownTimer = null;
 let lastHandledSignalIssuedAt = null, countdownTimer = null;
 
@@ -497,14 +502,40 @@ async function refreshMyState(){
 function applyRunTimer(current){
   if(current && current.start){ runStartMs = Date.parse(current.start); startClock(); }
   else{ runStartMs=null; stopClock(); }
+
+  // Pace is measured per leg: leg 1 (started) from the start point, leg 2 (middle) from the middle point.
+  if(runState==="middle" && current && current.middle) legStartMs = Date.parse(current.middle);
+  else if(runState==="started" && current && current.start) legStartMs = Date.parse(current.start);
+  else legStartMs = null;
 }
-function startClock(){ if(clockTimer) return; clockTimer=setInterval(()=>{ runTimerEl.textContent = runStartMs==null?"00:00":formatElapsed(Date.now()-runStartMs); },1000); }
+function startClock(){ if(clockTimer) return; clockTimer=setInterval(applyRunGating, 1000); }
 function stopClock(){ if(clockTimer){ clearInterval(clockTimer); clockTimer=null; } runTimerEl.textContent="00:00"; }
 
+function formatPace(minPerKm){
+  if(minPerKm==null || !isFinite(minPerKm) || minPerKm<=0) return "—:— / ק\"מ";
+  const totalSec = Math.round(minPerKm*60);
+  return String(Math.floor(totalSec/60)).padStart(2,"0") + ":" + String(totalSec%60).padStart(2,"0") + " / ק\"מ";
+}
+
+// Straight-line pace: distance from where this leg began (start or middle point) to where
+// you are right now, divided by time elapsed since that leg began. No route tracking needed.
+function currentPace(){
+  if(!myPos || legStartMs==null) return null;
+  const legPointName = runState==="middle" ? "middle" : "start";
+  const legPoint = checkpointPositions[legPointName];
+  if(!legPoint) return null;
+  const distKm = distanceKm(legPoint.lat, legPoint.lon, myPos.lat, myPos.lon);
+  const elapsedMin = (Date.now()-legStartMs)/60000;
+  if(distKm < 0.02 || elapsedMin <= 0) return null; // too close to the start of the leg for a stable number
+  return elapsedMin / distKm;
+}
+
 function applyRunGating(){
-  if(!myUser || myAdminScope){ runTimerEl.textContent=""; runDistanceEl.textContent=""; return; }
+  if(!myUser || myAdminScope){ runTimerEl.textContent=""; runDistanceEl.textContent=""; runPaceEl.textContent=""; return; }
   runTimerEl.textContent = runStartMs==null ? "00:00" : formatElapsed(Date.now()-runStartMs);
   stopBtn.style.display = (runState==="started"||runState==="middle") ? "block" : "none";
+
+  runPaceEl.textContent = (runState==="started"||runState==="middle") ? formatPace(currentPace()) : "";
 
   if(!myPos || !accuracyIsGood()){ sendBtn.disabled=true; return; }
   if(!runTarget){ sendBtn.disabled=true; sendBtn.textContent="טוען מצב…"; runDistanceEl.textContent=""; return; }
