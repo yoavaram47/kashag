@@ -208,6 +208,7 @@ let myPos = null, watchId = null, map = null, mapReady = false, myMarker = null,
 let cpMarkers = {};
 let checkpointPositions = {};
 let runTarget = null, runState = "idle", runStartMs = null, legStartMs = null, selfStartAllowed = true;
+let gpsHistory = []; // recent {lat,lon,t} fixes while running, used for rolling pace
 let stateTimer = null, clockTimer = null, adminCountdownTimer = null;
 let lastHandledSignalIssuedAt = null, countdownTimer = null;
 
@@ -465,6 +466,7 @@ function startLocationWatch(){
   myPos=null; firstLocation=true; updateAccuracyUI();
   watchId = navigator.geolocation.watchPosition(pos=>{
     myPos = {lat:pos.coords.latitude, lon:pos.coords.longitude, accuracy:pos.coords.accuracy};
+    if(runState==="started" && accuracyIsGood()) pushGpsSample(myPos.lat, myPos.lon);
     updateMyLocationOnMap();
     updateAccuracyUI();
   }, err=>{
@@ -487,7 +489,11 @@ async function refreshCheckpoints(){
 
 /* ===================== run state / timer (runner) ===================== */
 
-const RUN_BUTTON_LABEL = { idle:"התחל ריצה", started:"הגעתי לאמצע!", middle:"סיים ריצה" };
+// A run = touch Start to begin, then touch Start again (7+ minutes later) to finish.
+// Middle is still shown (if set) but no longer required to complete a run.
+const RUN_BUTTON_LABEL = { idle:"התחל ריצה", started:"סיים ריצה" };
+let minRunMs = 1*60*1000;       // default; refreshed from the server
+let autoFinishInFlight = false; // guards against double-sending the auto finish
 
 async function refreshMyState(){
   if(!myUser || myAdminScope) return;
@@ -495,21 +501,47 @@ async function refreshMyState(){
     const res = await fetch(WORKER_URL+"/api/mystate?user="+encodeURIComponent(myUser));
     const data = await res.json();
     if(data.target){
+      const wasIdle = runState !== "started";
       runTarget=data.target; runState=data.state;
+      if(data.minRunMs) minRunMs = data.minRunMs;
       selfStartAllowed = data.selfStartAllowed !== false;
+      if(runState==="started" && wasIdle) autoFinishInFlight = false; // fresh run just picked up
       applyRunTimer(data.current); applyRunGating();
     }
   }catch(e){}
 }
 function applyRunTimer(current){
-  if(current && current.start){ runStartMs = Date.parse(current.start); startClock(); }
-  else{ runStartMs=null; stopClock(); }
-
-  // Pace is measured per leg: leg 1 (started) from the start point, leg 2 (middle) from the middle point.
-  if(runState==="middle" && current && current.middle) legStartMs = Date.parse(current.middle);
-  else if(runState==="started" && current && current.start) legStartMs = Date.parse(current.start);
-  else legStartMs = null;
+  const wasRunning = runStartMs != null;
+  if(current && current.start){
+    const newStartMs = Date.parse(current.start);
+    if(newStartMs !== runStartMs) gpsHistory = []; // fresh run — clear the rolling pace window
+    runStartMs = newStartMs; legStartMs = runStartMs;
+    startClock();
+    if(!wasRunning) requestWakeLock();
+  }else{
+    runStartMs=null; legStartMs=null; gpsHistory=[];
+    stopClock();
+    if(wasRunning) releaseWakeLock();
+  }
 }
+
+/* ===================== keep screen awake while running (best-effort) ===================== */
+
+let wakeLock = null;
+async function requestWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', ()=>{ wakeLock=null; });
+    }
+  }catch(e){ /* not supported / denied — fine, just no-op */ }
+}
+function releaseWakeLock(){
+  if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock=null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && runState === 'started' && !wakeLock) requestWakeLock();
+});
 function startClock(){ if(clockTimer) return; clockTimer=setInterval(applyRunGating, 1000); }
 function stopClock(){ if(clockTimer){ clearInterval(clockTimer); clockTimer=null; } runTimerEl.textContent="00:00"; }
 
@@ -519,44 +551,65 @@ function formatPace(minPerKm){
   return String(Math.floor(totalSec/60)).padStart(2,"0") + ":" + String(totalSec%60).padStart(2,"0") + " / ק\"מ";
 }
 
-// Straight-line pace: distance from where this leg began (start or middle point) to where
-// you are right now, divided by time elapsed since that leg began. No route tracking needed.
+// Rolling pace: computed client-side from the last few real GPS fixes (actual distance
+// walked between them), not a straight line to any checkpoint — closer to a real pace.
+const PACE_WINDOW_MS = 45000;  // only keep samples from the last 45s
+const PACE_MIN_POINTS = 2;
+
+function pushGpsSample(lat, lon){
+  const t = Date.now();
+  gpsHistory.push({ lat, lon, t });
+  const cutoff = t - PACE_WINDOW_MS;
+  while(gpsHistory.length > 1 && gpsHistory[0].t < cutoff) gpsHistory.shift();
+}
+
 function currentPace(){
-  if(!myPos || legStartMs==null) return null;
-  const legPointName = runState==="middle" ? "middle" : "start";
-  const legPoint = checkpointPositions[legPointName];
-  if(!legPoint) return null;
-  const distKm = distanceKm(legPoint.lat, legPoint.lon, myPos.lat, myPos.lon);
-  const elapsedMin = (Date.now()-legStartMs)/60000;
-  if(distKm < 0.02 || elapsedMin <= 0) return null; // too close to the start of the leg for a stable number
+  if(gpsHistory.length < PACE_MIN_POINTS) return null;
+  let distKm = 0;
+  for(let i=1;i<gpsHistory.length;i++){
+    const a = gpsHistory[i-1], b = gpsHistory[i];
+    distKm += distanceKm(a.lat, a.lon, b.lat, b.lon);
+  }
+  const elapsedMin = (gpsHistory[gpsHistory.length-1].t - gpsHistory[0].t)/60000;
+  if(distKm < 0.015 || elapsedMin <= 0) return null; // not enough real movement yet for a stable number
   return elapsedMin / distKm;
 }
 
 function applyRunGating(){
   if(!myUser || myAdminScope){ runTimerEl.textContent=""; runDistanceEl.textContent=""; runPaceEl.textContent=""; return; }
   runTimerEl.textContent = runStartMs==null ? "00:00" : formatElapsed(Date.now()-runStartMs);
-  stopBtn.style.display = (runState==="started"||runState==="middle") ? "block" : "none";
-
-  runPaceEl.textContent = (runState==="started"||runState==="middle") ? formatPace(currentPace()) : "";
+  stopBtn.style.display = (runState==="started") ? "block" : "none";
+  runPaceEl.textContent = (runState==="started") ? formatPace(currentPace()) : "";
 
   if(!myPos || !accuracyIsGood()){ sendBtn.disabled=true; return; }
   if(!runTarget){ sendBtn.disabled=true; sendBtn.textContent="טוען מצב…"; runDistanceEl.textContent=""; return; }
 
-  if(runTarget==="start" && runState==="idle" && !selfStartAllowed){
+  if(runState==="idle" && !selfStartAllowed){
     sendBtn.disabled = true;
     sendBtn.textContent = "ממתינים להזנקה";
-    runDistanceEl.textContent = "רק מפקד יכול להתחיל עבורכם את הריצה";
+    runDistanceEl.textContent = "רק מדא\"גית יכולה להתחיל עבורכם את הריצה";
     return;
   }
 
   sendBtn.textContent = RUN_BUTTON_LABEL[runState] || RUN_BUTTON_LABEL.idle;
-  const targetLabel = runTarget==="start" ? "Start" : "Middle";
-  const targetPos = checkpointPositions[runTarget];
-  if(!targetPos){ sendBtn.disabled=true; runDistanceEl.textContent=`ממתין למיקום של ${targetLabel}…`; return; }
+  const startPos = checkpointPositions.start;
+  if(!startPos){ sendBtn.disabled=true; runDistanceEl.textContent="ממתין למיקום של Start…"; return; }
 
-  const distM = Math.round(distanceKm(myPos.lat,myPos.lon,targetPos.lat,targetPos.lon)*1000);
-  runDistanceEl.textContent = `מרחק מ-${targetLabel}: ${distM} מ׳`;
-  sendBtn.disabled = distM > ACCURACY_LIMIT;
+  const distM = Math.round(distanceKm(myPos.lat,myPos.lon,startPos.lat,startPos.lon)*1000);
+  const inRange = distM <= ACCURACY_LIMIT;
+
+  runDistanceEl.textContent = `מרחק מ-Start: ${distM} מ׳`;
+
+  if(runState==="started"){
+    const eligible = inRange && (Date.now()-runStartMs) >= minRunMs;
+    sendBtn.disabled = !eligible;
+    if(eligible && !autoFinishInFlight){
+      autoFinishInFlight = true;
+      sendCheckIn();
+    }
+  }else{
+    sendBtn.disabled = !inRange;
+  }
 }
 
 /* ===================== send / stop (runner) ===================== */
@@ -564,6 +617,7 @@ function applyRunGating(){
 async function sendCheckIn(){
   if(!myUser || !myPos) return;
   sendBtn.disabled = true;
+  const wasStarted = runState === "started";
   sendBtn.textContent = "שולח…";
   try{
     const res = await fetch(WORKER_URL+"/api/location",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -571,20 +625,23 @@ async function sendCheckIn(){
     const result = await res.json();
     if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
 
-    if(result.near) setStatus(`✅ נרשם: ${result.near.point} — ${result.near.timestamp}`,"ok");
-    else if(result.selfStartBlocked) setStatus("רק מפקד יכול להתחיל עבורכם את הריצה — המתינו להזנקה.","err");
+    if(result.near) setStatus(wasStarted ? `✅ הריצה הסתיימה ונשלחה — ${result.near.timestamp}` : `✅ הריצה התחילה — ${result.near.timestamp}`, "ok");
+    else if(result.selfStartBlocked) setStatus("רק מדא\"גית יכולה להתחיל עבורכם את הריצה — המתינו להזנקה.","err");
+    else if(result.tooSoon) setStatus("לא ניתן לסיים כרגע — נסו שוב בעוד רגע.","err");
     else setStatus("לא היית בטווח — נסו שוב כשתתקרבו.","err");
 
+    if(result.minRunMs) minRunMs = result.minRunMs;
     if(result.target){
       runTarget=result.target; runState=result.state;
       if(typeof result.selfStartBlocked === "boolean" && result.selfStartBlocked) selfStartAllowed=false;
       applyRunTimer(result.current);
     }
+    if(result.near) autoFinishInFlight = false; // run closed or opened cleanly; next run starts fresh
     await refreshCheckpoints();
     applyRunGating();
     return result;
   }catch(e){ setStatus("שגיאה בשליחה: "+e.message,"err"); }
-  finally{ updateAccuracyUI(); }
+  finally{ autoFinishInFlight = false; updateAccuracyUI(); }
 }
 
 sendBtn.addEventListener("click", async ()=>{
