@@ -1,826 +1,273 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
+<!doctype html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>מיקומים חיים</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  :root{ --bg:#0b1220; --card:#121b2e; --line:#233150; --text:#eaf1ff; --muted:#8ea0c4; --accent:#35d0a0; --ok:#22c55e; --danger:#ff6b6b; }
-  *{box-sizing:border-box}
-  body{ margin:0; background:var(--bg); color:var(--text); font-family:Calibri,Arial,sans-serif; }
-  header{ padding:14px 14px 8px; display:flex; align-items:center; justify-content:space-between; max-width:600px; margin:auto; }
-  h1{ margin:0; font-size:20px; }
-  .results{ color:var(--accent); text-decoration:none; font-size:13px; }
-  .wrap{ max-width:600px; margin:auto; padding:0 12px 18px; }
-  .wrap.with-actionbar{ padding-bottom:132px; }
-
-  /* user picker */
-  .user-row{ display:flex; gap:8px; margin-bottom:8px; }
-  #userInput{ flex:1; min-width:0; padding:9px 10px; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; }
-  #confirmUserBtn{ flex:0 0 auto; padding:9px 14px; border:0; border-radius:9px; background:var(--accent); color:#04231a; font-weight:700; font-size:14px; font-family:inherit; cursor:pointer; }
-  #confirmUserBtn:disabled{ opacity:.5; cursor:default; }
-  #suggestions .sugg-item{ padding:10px 12px; font-size:14px; cursor:pointer; border-bottom:1px solid var(--line); }
-  #suggestions .sugg-item:last-child{ border-bottom:none; }
-  #suggestions .sugg-item:hover, #suggestions .sugg-item.active{ background:var(--bg); }
-  #userNote{ font-size:12px; color:var(--muted); margin:-2px 0 8px; min-height:15px; }
-  #userNote.new{ color:var(--accent); }
-  .active-user{ font-size:13px; color:var(--muted); margin-bottom:8px; }
-  .active-user b{ color:var(--text); }
-  .active-user button{ margin-right:8px; background:none; border:1px solid var(--line); color:var(--muted); border-radius:7px; padding:2px 8px; font-size:12px; font-family:inherit; cursor:pointer; }
-
-  .reg-row{ display:flex; gap:8px; margin-bottom:8px; }
-  #plugahSelect{ flex:0 0 90px; padding:9px 10px; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; }
-  #tzevetInput{ flex:1; min-width:0; padding:9px 10px; background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:9px; font-size:14px; font-family:inherit; }
-
-  /* single accuracy readout, shown for both admin and runner */
-  .location-box{ background:var(--card); border:1px solid var(--line); border-radius:9px; padding:7px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
-  .location-title{ color:var(--muted); font-size:12px; }
-  #accuracyValue{ font-size:13px; font-weight:700; white-space:nowrap; }
-  #accuracyValue.good{ color:var(--ok); }
-  #accuracyValue.bad{ color:var(--danger); }
-
-  #status{ min-height:0; margin-bottom:8px; padding:0 2px; color:var(--muted); font-size:12px; text-align:center; }
-  #status.err{ color:var(--danger); }
-  #status.ok{ color:var(--ok); font-weight:700; }
-
-  /* admin panel (map lives here — admin only) */
-  .admin-box{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
-  .admin-box h3{ margin:0 0 10px; font-size:15px; }
-  .admin-row{ display:flex; gap:8px; margin-bottom:10px; }
-  .admin-row button{ flex:1; padding:12px; border-radius:9px; border:0; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; }
-  .cp-start{ background:var(--accent); color:#04231a; }
-  .cp-middle{ background:#3b82f6; color:#fff; }
-  .signal-row{ display:flex; gap:8px; margin-bottom:8px; }
-  .signal-row input{ flex:0 0 90px; padding:10px; border-radius:9px; background:var(--bg); color:var(--text); border:1px solid var(--line); font-size:14px; font-family:inherit; }
-  .signal-row button{ flex:1; padding:10px; border-radius:9px; border:0; background:#f59e0b; color:#221600; font-weight:700; font-family:inherit; font-size:14px; cursor:pointer; }
-  .cp-status{ font-size:12px; color:var(--muted); margin-top:8px; }
-  #adminCountdown{ font-size:14px; font-weight:700; color:var(--accent); min-height:18px; margin-top:6px; }
-  .source-row{ display:flex; gap:8px; margin-bottom:8px; font-size:13px; }
-  .source-row label{ flex:1; display:flex; align-items:center; gap:6px; background:var(--bg); border:1px solid var(--line); border-radius:9px; padding:8px 10px; cursor:pointer; }
-  .source-row input{ accent-color:var(--accent); }
-
-  .map-box{ overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--card); }
-  #map{ width:100%; height:380px; }
-  .leaflet-container{ font-family:Calibri,Arial,sans-serif; }
-  .my-marker{ width:18px; height:18px; border-radius:50%; background:var(--accent); border:3px solid white; box-shadow:0 0 0 3px rgba(53,208,160,.28); }
-  .cp-marker{ width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 1px 5px rgba(0,0,0,.5); }
-  .leaflet-popup-content{ direction:rtl; text-align:right; font-family:Calibri,Arial,sans-serif; }
-
-  /* fixed action bar (runners only) */
-  #actionBar{ position:fixed; left:0; right:0; bottom:0; z-index:50; background:var(--card); border-top:1px solid var(--line); padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px)); max-width:600px; margin:0 auto; box-shadow:0 -4px 16px rgba(0,0,0,.35); }
-  #runCenter{ text-align:center; padding:36px 10px 28px; }
-  #runTimer{ font-size:76px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; }
-  #runPace{ font-size:22px; font-weight:700; color:var(--accent); margin-top:10px; }
-  #runDistance{ font-size:14px; color:var(--muted); margin-top:14px; }
-  #actionButtons{ display:flex; gap:8px; padding-top:4px; }
-  #sendBtn{ flex:1; border:0; border-radius:9px; padding:12px; font-family:inherit; font-size:14px; font-weight:700; background:var(--accent); color:#04231a; cursor:pointer; }
-  #sendBtn:disabled{ opacity:.5; cursor:default; }
-  #stopBtn{ display:none; flex:0 0 auto; border:1px solid var(--danger); background:none; color:var(--danger); border-radius:9px; padding:12px 14px; font-family:inherit; font-size:13px; cursor:pointer; }
-
-  /* fullscreen countdown — runners only, so nothing (no map) sits behind it */
-  #countdownOverlay{ display:none; position:fixed; inset:0; z-index:99999; background:rgba(5,10,20,.96); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; }
-  #countdownOverlay.show{ display:flex; }
-  #countdownNumber{ font-size:110px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; line-height:1; }
-  #countdownLabel{ font-size:18px; color:var(--muted); margin-top:10px; }
+:root{--orange:#FC4C02;--orange-dark:#E34402;--ink:#242428;--muted:#6D6D78;--bg:#F5F5F7;
+  --card:#fff;--line:#E7E7EC;--ok:#1E9E5A;--bad:#E0392B;--shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.05)}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:'Inter',system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--orange);text-decoration:none}a:hover{text-decoration:underline}
+.top{background:var(--orange);color:#fff}
+.top .wrap{max-width:900px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:#fff;cursor:pointer}
+.brand small{font-weight:600;opacity:.85;font-size:12px;letter-spacing:.5px}
+.top .spacer{flex:1}.top .navlink{color:#fff;opacity:.92;font-weight:600;font-size:14px;cursor:pointer}
+.wrap{max-width:900px;margin:0 auto;padding:24px 20px 56px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:var(--shadow)}
+h1{font-size:26px;font-weight:800;margin:0 0 6px;letter-spacing:-.2px}
+p.lead{color:var(--muted);margin:0 0 20px}.muted{color:var(--muted)}
+.steps{display:flex;gap:8px;margin:0 auto 22px;max-width:520px}
+.steps .s{flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:8px 6px;border-radius:10px;background:#ECECF1;border:1px solid var(--line)}
+.steps .s.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+.steps .s .n{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:#D9D9E1;color:#fff;margin-right:6px;font-size:11px}
+.steps .s.active .n{background:rgba(255,255,255,.3)}
+.setting{display:flex;gap:14px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#FCFCFD}
+.setting+.setting{margin-top:12px}
+.setting .ic{flex:none;width:40px;height:40px;border-radius:10px;background:rgba(252,76,2,.1);display:flex;align-items:center;justify-content:center;color:var(--orange)}
+.setting h3{margin:0 0 4px;font-size:15px}.setting ol{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:14px}
+.pill{display:inline-block;background:var(--ink);color:#fff;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700}
+.video-box{margin:20px 0 4px;border:2px dashed var(--line);border-radius:14px;overflow:hidden;background:#FAFAFC}
+.video-box video{display:block;width:100%;background:#000}
+.video-ph{padding:40px 20px;text-align:center;color:var(--muted)}.video-ph .big{font-size:40px;line-height:1}
+.field{margin-bottom:16px}label{display:block;font-weight:700;font-size:13px;margin-bottom:6px}
+input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff;color:var(--ink)}
+input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(252,76,2,.15)}
+.hint{color:var(--muted);font-size:12px;margin-top:6px}
+.btn{display:inline-block;background:var(--orange);color:#fff;border:0;border-radius:10px;padding:13px 22px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+.btn:hover{background:var(--orange-dark);color:#fff;text-decoration:none}.btn.block{display:block;width:100%}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{background:#F2F2F6;color:var(--ink)}
+.btn[disabled]{opacity:.6;cursor:default}
+.btnrow{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}.btnrow .btn{flex:1;min-width:140px}
+.alert{padding:12px 14px;border-radius:10px;font-size:14px;margin-bottom:16px;border:1px solid}
+.alert.err{background:#FDECEA;border-color:#F5C2BC;color:#9B2117}
+.verdict{display:flex;align-items:center;gap:12px;padding:16px 18px;border-radius:12px;margin:16px 0}
+.verdict.ok{background:rgba(30,158,90,.1);color:var(--ok)}.verdict.bad{background:rgba(224,57,43,.1);color:var(--bad)}
+.verdict .tag{font-size:20px;font-weight:800;letter-spacing:.5px}
+.bigtime{font-size:44px;font-weight:800;letter-spacing:-.5px;line-height:1}.bigtime .u{font-size:15px;font-weight:600;color:var(--muted);margin-left:6px}
+.kv{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}.kv td{padding:8px 2px;border-bottom:1px solid var(--line)}
+.kv td.r{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+#map{height:360px;border-radius:12px;margin-top:16px;border:1px solid var(--line)}
+.meta{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin-top:4px}.meta b{color:var(--ink)}
+table.runs{width:100%;border-collapse:collapse;font-size:14px}
+table.runs th,table.runs td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.runs th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+table.runs td.time{font-weight:700;font-variant-numeric:tabular-nums}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+.badge.ok{background:rgba(30,158,90,.12);color:var(--ok)}.badge.bad{background:rgba(224,57,43,.12);color:var(--bad)}
+footer{max-width:900px;margin:0 auto;padding:10px 20px 40px;color:var(--muted);font-size:12px}
+.hidden{display:none}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
+<div class="top"><div class="wrap">
+  <div class="brand" onclick="go('privacy')">
+    <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 2 4 20l5-2 3 4 3-4 5 2L12 2z" fill="#fff"/></svg>
+    COURSE&nbsp;TIMER <small>· SEGMENT</small>
+  </div>
+  <div class="spacer"></div>
+  <div class="navlink" onclick="openRuns()">All runs</div>
+</div></div>
 
-<header>
-  <h1>📍 מיקומים חיים</h1>
-  <a class="results" href="results.html">🏁 תוצאות</a>
-</header>
+<div class="wrap">
+  <div class="steps" id="steps">
+    <div class="s" data-step="1"><span class="n">1</span>Privacy</div>
+    <div class="s" data-step="2"><span class="n">2</span>Your run</div>
+    <div class="s" data-step="3"><span class="n">3</span>Result</div>
+  </div>
 
-<div class="wrap" id="wrap">
+  <!-- STEP 1 : PRIVACY -->
+  <div id="view-privacy" class="card">
+    <h1>First, make your run readable</h1>
+    <p class="lead">We pull your GPS track straight from your public activity — no login, no app to install.
+      For that to work, these settings must be <span class="pill">Everyone</span>. Takes 30 seconds.</p>
+    <div class="setting"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+      <div><h3>Profile Page → <span class="pill">Everyone</span></h3>
+        <ol><li>Strava → <b>Settings</b> → <b>Privacy Controls</b></li><li>Open <b>Profile Page</b></li><li>Choose <b>Everyone</b></li></ol></div></div>
+    <div class="setting"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
+      <div><h3>Flyby → <span class="pill">Everyone</span></h3>
+        <ol><li>Same <b>Privacy Controls</b> screen</li><li>Open <b>Flyby</b></li><li>Choose <b>Everyone</b></li></ol></div></div>
+    <div class="setting"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
+      <div><h3>The activity itself → <span class="pill">Everyone</span></h3>
+        <ol><li>Open the run → <b>⋯</b> → <b>Edit</b></li><li>Set <b>Who can see</b> to <b>Everyone</b></li></ol></div></div>
+    <div class="video-box" id="videoBox"></div>
+    <div class="btnrow"><a class="btn block" onclick="go('submit')">I’ve set all three to Everyone → Continue</a></div>
+  </div>
 
-  <div id="pickerBlock">
-    <div class="user-row" style="position:relative">
-      <input id="userInput" placeholder="הקלידו שם משתמש…" autocomplete="off" style="flex:1;min-width:0;padding:9px 10px;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit">
-      <button id="confirmUserBtn" disabled>בחר</button>
-      <div id="suggestions" style="display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:var(--card);border:1px solid var(--line);border-radius:9px;max-height:220px;overflow-y:auto;z-index:40"></div>
-    </div>
-    <div id="userNote"></div>
-    <div id="registerFields" style="display:none" class="reg-row">
-      <select id="plugahSelect">
-        <option value="">פלוגה</option>
-        <option value="א">א</option><option value="ב">ב</option><option value="ג">ג</option>
-        <option value="ד">ד</option><option value="ה">ה</option><option value="ו">ו</option><option value="ז">ז</option>
-      </select>
-      <input id="tzevetInput" type="number" min="1" max="30" placeholder="צוות (1-30)">
+  <!-- STEP 2 : SUBMIT -->
+  <div id="view-submit" class="card hidden">
+    <h1>Submit your run</h1>
+    <p class="lead">Paste the link to your public Strava activity. In the app: open the run →
+      <b>Share</b> → <b>Copy Link</b>.</p>
+    <div id="submitErr" class="alert err hidden"></div>
+    <div class="field"><label for="name">Name</label><input id="name" type="text" placeholder="Your name"></div>
+    <div class="field"><label for="team">Team <span class="muted">(optional)</span></label><input id="team" type="text" placeholder="Your team"></div>
+    <div class="field"><label for="link">Strava run link</label>
+      <input id="link" type="url" placeholder="https://strava.app.link/…  or  https://www.strava.com/activities/123…">
+      <div class="hint">Works with app share links (strava.app.link/…) and normal activity links.</div></div>
+    <div class="btnrow">
+      <a class="btn ghost" onclick="go('privacy')">Back</a>
+      <button class="btn" id="checkBtn" onclick="doSubmit()">Check my run</button>
     </div>
   </div>
 
-  <div id="activeUserBlock" class="active-user" style="display:none">
-    מחובר בתור <b id="activeUserName"></b>
-    <button id="switchUserBtn">החלף</button>
-  </div>
+  <!-- STEP 3 : RESULT -->
+  <div id="view-result" class="card hidden"></div>
 
-  <div id="geoBlock" style="display:none">
-    <div class="location-box">
-      <span class="location-title">מיקום</span>
-      <span id="accuracyValue">מאתר…</span>
-    </div>
-    <div id="status"></div>
-  </div>
-
-  <div id="runCenter" style="display:none">
-    <div id="runTimer">00:00</div>
-    <div id="runPace"></div>
-    <div id="runDistance"></div>
-  </div>
-
-  <!-- ADMIN PANEL (map lives here — admin only) -->
-  <div id="adminBlock" style="display:none">
-    <div class="admin-box">
-      <h3 id="adminTitle">ניהול נקודות ציון</h3>
-      <div class="admin-row">
-        <button id="setStartBtn" class="cp-start">📍 קבע כאן Start</button>
-        <button id="setMiddleBtn" class="cp-middle">📍 קבע כאן Middle</button>
-      </div>
-
-      <div id="sourceBlock" style="display:none">
-        <div class="source-row">
-          <label><input type="radio" name="cpSource" value="global"> נקודות גדודיות (ברירת מחדל)</label>
-          <label><input type="radio" name="cpSource" value="own"> נקודות הפלוגה שלי</label>
-        </div>
-        <div class="source-row">
-          <label><input type="radio" name="selfStart" value="on"> הפלוגה יכולה להתחיל ריצה בעצמה</label>
-          <label><input type="radio" name="selfStart" value="off"> רק דרך הזנקה</label>
-        </div>
-      </div>
-
-      <div class="cp-status" id="cpStatus"></div>
-    </div>
-
-    <div class="admin-box">
-      <h3>🚦 הזנקה</h3>
-      <div class="signal-row">
-        <input id="signalSeconds" type="number" min="1" max="600" value="20">
-        <button id="signalBtn">הזנק!</button>
-        <button id="cancelSignalBtn" style="flex:0 0 auto;background:var(--card);color:var(--danger);border:1px solid var(--danger);border-radius:9px;padding:10px 14px;font-family:inherit;font-size:13px;cursor:pointer">בטל</button>
-      </div>
-      <div class="cp-status">כל רץ אידיאלי (עדיין לא התחיל) שנמצא בטווח 20 מ׳ מ-Start כשהספירה מגיעה לאפס, יתחיל ריצה אוטומטית. האמצע והסיום נשארים תמיד ביד הרץ.</div>
-      <div id="adminCountdown"></div>
-    </div>
-
-    <div class="map-box"><div id="map"></div></div>
-  </div>
-
+  <!-- RUNS -->
+  <div id="view-runs" class="card hidden"></div>
 </div>
 
-<div id="actionBar" style="display:none">
-  <div id="actionButtons">
-    <button id="sendBtn" disabled>שלח מרחק</button>
-    <button id="stopBtn">עצור ריצה</button>
-  </div>
-</div>
+<footer>Not affiliated with Strava. GPS data is fetched from public activities only.</footer>
 
-<div id="countdownOverlay">
-  <div id="countdownNumber">20</div>
-  <div id="countdownLabel">הזנקה — התכוננו!</div>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const WORKER_URL = "https://kashag.yoav-aram-47.workers.dev";
-const ACCURACY_LIMIT = 20;
-const REFRESH_INTERVAL = 5000;
+// ─────────────────────────────────────────────────────────────
+//  CONFIG — fill these two in
+// ─────────────────────────────────────────────────────────────
+const API_BASE = "https://YOUR-WORKER.YOUR-SUBDOMAIN.workers.dev"; // <-- your Cloudflare Worker URL
+const VIDEO_URL = "";  // <-- optional: URL of the how-to video (leave "" to show a placeholder)
+// ─────────────────────────────────────────────────────────────
 
-const $ = id => document.getElementById(id);
+let COURSE = null, map = null;
 
-const wrapEl = $("wrap");
-const userInput = $("userInput"), suggestionsEl = $("suggestions"), confirmUserBtn = $("confirmUserBtn"), userNote = $("userNote");
-const pickerBlock = $("pickerBlock"), activeUserBlock = $("activeUserBlock"), activeUserName = $("activeUserName"), switchUserBtn = $("switchUserBtn");
-const registerFields = $("registerFields"), plugahSelect = $("plugahSelect"), tzevetInput = $("tzevetInput");
-const geoBlock = $("geoBlock"), accuracyValue = $("accuracyValue"), statusEl = $("status");
-const runCenter = $("runCenter");
-const adminBlock = $("adminBlock"), adminTitle = $("adminTitle"), setStartBtn = $("setStartBtn"), setMiddleBtn = $("setMiddleBtn"), cpStatus = $("cpStatus");
-const sourceBlock = $("sourceBlock"), adminCountdownEl = $("adminCountdown");
-const signalSeconds = $("signalSeconds"), signalBtn = $("signalBtn"), cancelSignalBtn = $("cancelSignalBtn");
-const actionBar = $("actionBar"), sendBtn = $("sendBtn"), stopBtn = $("stopBtn"), runTimerEl = $("runTimer"), runDistanceEl = $("runDistance"), runPaceEl = $("runPace");
-const countdownOverlay = $("countdownOverlay"), countdownNumber = $("countdownNumber"), countdownLabel = $("countdownLabel");
-
-let knownAdmins = [], knownPeople = [], labelToPerson = {};
-let myUser = null, myAdminScope = null, myPlugah = null;
-
-let myPos = null, watchId = null, map = null, mapReady = false, myMarker = null, myAccuracyCircle = null, firstLocation = true;
-let cpMarkers = {};
-let checkpointPositions = {};
-let runTarget = null, runState = "idle", runStartMs = null, legStartMs = null, selfStartAllowed = true;
-let gpsHistory = []; // recent {lat,lon,t} fixes while running, used for rolling pace
-let stateTimer = null, clockTimer = null, adminCountdownTimer = null;
-let lastHandledSignalIssuedAt = null, countdownTimer = null;
-
-/* ===================== small helpers ===================== */
-
-const radians = x => x * Math.PI / 180;
-function distanceKm(a,b,c,d){
-  const x = Math.sin(radians(c-a)/2)**2 + Math.cos(radians(a))*Math.cos(radians(c))*Math.sin(radians(d-b)/2)**2;
-  return 2*6371*Math.asin(Math.sqrt(x));
-}
-function escapeHtml(t){ return String(t).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
-function setStatus(t, cls=""){ statusEl.textContent = t; statusEl.className = cls; }
-function safeUsername(u){ return String(u||"").replace(/[^a-zA-Z0-9_\u05D0-\u05EA \-]/g,"").replace(/\s+/g," ").trim().slice(0,60); }
-function isAdminNameLike(u){ return u === "admin_גדוד" || /^admin_[\u05D0-\u05D6]$/.test(u); }
-function formatElapsed(ms){ const total = Math.max(0, Math.floor(ms/1000)); return String(Math.floor(total/60)).padStart(2,"0") + ":" + String(total%60).padStart(2,"0"); }
-
-/* ===================== map (admin only) ===================== */
-
-function initMap(){
-  map = L.map("map",{zoomControl:true}).setView([31.8,35.0],8);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-    maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(map);
-  mapReady = true;
-}
-function myIcon(){ return L.divIcon({className:"",html:'<div class="my-marker"></div>',iconSize:[18,18],iconAnchor:[9,9]}); }
-function cpIcon(color){ return L.divIcon({className:"",html:`<div class="cp-marker" style="background:${color}"></div>`,iconSize:[16,16],iconAnchor:[8,8]}); }
-
-function updateMyLocationOnMap(){
-  if(!myPos || !mapReady) return;
-  const latlng=[myPos.lat,myPos.lon];
-  if(!myMarker){ myMarker=L.marker(latlng,{icon:myIcon(),zIndexOffset:1000}).addTo(map); myMarker.bindPopup(""); }
-  else myMarker.setLatLng(latlng);
-  myMarker.setPopupContent(`<strong>📍 ${escapeHtml(myUser)}</strong><br>דיוק: ±${Math.round(myPos.accuracy)} מ׳`);
-  if(!myAccuracyCircle) myAccuracyCircle=L.circle(latlng,{radius:myPos.accuracy,color:"#35d0a0",fillColor:"#35d0a0",fillOpacity:.10,weight:2}).addTo(map);
-  else { myAccuracyCircle.setLatLng(latlng); myAccuracyCircle.setRadius(myPos.accuracy); }
-  if(firstLocation){ map.setView(latlng,17); firstLocation=false; }
+function go(view){
+  for (const v of ["privacy","submit","result","runs"])
+    document.getElementById("view-"+v).classList.toggle("hidden", v!==view);
+  const stepFor = {privacy:1, submit:2, result:3, runs:0};
+  document.getElementById("steps").style.display = stepFor[view] ? "flex" : "none";
+  document.querySelectorAll("#steps .s").forEach(s=>
+    s.classList.toggle("active", +s.dataset.step===stepFor[view]));
+  window.scrollTo(0,0);
 }
 
-function renderCheckpointsOnMap(){
-  if(!mapReady) return;
-  for(const point of ["start","middle"]){
-    const pos = checkpointPositions[point];
-    if(!pos){
-      if(cpMarkers[point]){ map.removeLayer(cpMarkers[point]); delete cpMarkers[point]; }
-      continue;
-    }
-    const color = point==="start" ? "#35d0a0" : "#3b82f6";
-    if(!cpMarkers[point]) cpMarkers[point]=L.marker([pos.lat,pos.lon],{icon:cpIcon(color)}).addTo(map);
-    else cpMarkers[point].setLatLng([pos.lat,pos.lon]);
-    cpMarkers[point].bindPopup(`<strong>${point==="start"?"🏁 Start":"🔵 Middle"}</strong>`);
+function fmt(sec){
+  if (sec==null || !isFinite(sec)) return "--";
+  const neg=sec<0?"-":""; sec=Math.abs(sec);
+  const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+  return neg + (h ? h+":"+String(m).padStart(2,"0") : m) + ":" + s.toFixed(1).padStart(4,"0");
+}
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// video placeholder
+document.getElementById("videoBox").innerHTML = VIDEO_URL
+  ? `<video controls preload="metadata" src="${esc(VIDEO_URL)}"></video>`
+  : `<div class="video-ph"><div class="big">▶</div><div style="margin-top:8px">A short how-to video will play here.</div>
+     <div class="hint">Set <code>VIDEO_URL</code> at the top of index.html to show it.</div></div>`;
+
+async function api(path, opts){
+  const r = await fetch(API_BASE+path, opts);
+  const d = await r.json().catch(()=>({error:"Bad response from server"}));
+  if (!r.ok) throw new Error(d.error || ("HTTP "+r.status));
+  return d;
+}
+async function getCourse(){ if(!COURSE){ try{ COURSE = await api("/api/course"); }catch(e){} } return COURSE; }
+
+async function doSubmit(){
+  const name=document.getElementById("name").value.trim();
+  const team=document.getElementById("team").value.trim();
+  const link=document.getElementById("link").value.trim();
+  const err=document.getElementById("submitErr");
+  err.classList.add("hidden");
+  if(!name || !link){ err.textContent="Name and run link are required."; err.classList.remove("hidden"); return; }
+  if(API_BASE.includes("YOUR-WORKER")){ err.textContent="Set API_BASE at the top of index.html to your Worker URL."; err.classList.remove("hidden"); return; }
+  const btn=document.getElementById("checkBtn");
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Checking…';
+  try{
+    const run = await api("/api/submit", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({name,team,link})});
+    await renderResult(run);
+    go("result");
+  }catch(e){
+    err.textContent=e.message; err.classList.remove("hidden");
+  }finally{
+    btn.disabled=false; btn.textContent="Check my run";
   }
 }
 
-/* ===================== user picker (supports duplicate names) ===================== */
-
-function personLabel(p){ return `${p.name} (פלוגה ${p.plugah}, צוות ${p.tzevet})`; }
-
-// Admins are reachable ONLY by typing their exact reserved name (e.g. "admin_א") —
-// they are never listed as suggestions, so nobody stumbles onto the admin panel by browsing.
-function buildLabelIndex(){
-  labelToPerson = {};
-  knownAdmins.forEach(a => labelToPerson[a] = { id:a, name:a, isAdmin:true });
-  knownPeople.forEach(p => labelToPerson[personLabel(p)] = { ...p, isAdmin:false });
-}
-
-function peopleLabels(){ return knownPeople.map(personLabel); }
-
-function renderSuggestions(){
-  const typed = userInput.value.trim();
-  suggestionsEl.innerHTML = "";
-  if(!typed){ suggestionsEl.style.display="none"; return; }
-
-  const matches = peopleLabels().filter(l => l.startsWith(typed)).slice(0, 8);
-  if(!matches.length){ suggestionsEl.style.display="none"; return; }
-
-  matches.forEach(label => {
-    const item = document.createElement("div");
-    item.className = "sugg-item";
-    item.textContent = label;
-    item.addEventListener("mousedown", (e) => { // mousedown fires before input's blur
-      e.preventDefault();
-      userInput.value = label;
-      suggestionsEl.style.display = "none";
-      updateUserNote();
-    });
-    suggestionsEl.appendChild(item);
-  });
-  suggestionsEl.style.display = "block";
-}
-
-userInput.addEventListener("blur", () => setTimeout(()=>{ suggestionsEl.style.display="none"; }, 120));
-userInput.addEventListener("focus", renderSuggestions);
-
-function updateUserNote(){
-  const typed = userInput.value.trim();
-  renderSuggestions();
-
-  if(!typed){ userNote.textContent=""; userNote.className=""; registerFields.style.display="none"; confirmUserBtn.disabled=true; confirmUserBtn.textContent="בחר"; return; }
-
-  if(labelToPerson[typed]){
-    userNote.textContent=""; userNote.className=""; registerFields.style.display="none";
-    confirmUserBtn.disabled=false; confirmUserBtn.textContent="בחר";
-    return;
+async function renderResult(run){
+  await getCourse();
+  const v = document.getElementById("view-result");
+  const head = `<h1 style="margin-bottom:2px">${esc(run.name)}${run.team?` <span class="muted" style="font-weight:600">· ${esc(run.team)}</span>`:""}</h1>
+    <div class="meta">${run.athlete?`<span>Athlete: <b>${esc(run.athlete)}</b></span>`:""}
+      ${run.activity?`<span>Activity: <b>${esc(run.activity)}</b></span>`:""}
+      <span>Points: <b>${run.points}</b></span></div>`;
+  let body;
+  if(run.valid){
+    body = `<div class="verdict ok"><span class="tag">✓ VALID</span><span class="muted">— start → middle → finish in order</span></div>
+      <div class="bigtime">${fmt(run.total_s)}<span class="u">final time</span></div>
+      <table class="kv">
+        <tr><td>Gate-to-gate (base)</td><td class="r">${fmt(run.base_s)}</td></tr>
+        <tr><td>Start adjustment (${run.d_start_m.toFixed(1)} m)</td><td class="r">+${fmt(run.add_start_s)}</td></tr>
+        <tr><td>Finish adjustment (${run.d_finish_m.toFixed(1)} m)</td><td class="r">+${fmt(run.add_finish_s)}</td></tr>
+      </table>`;
+  } else {
+    body = `<div class="verdict bad"><span class="tag">✗ INVALID</span><span class="muted">— ${esc(run.reason)}</span></div>
+      <table class="kv">
+        <tr><td>Start/finish crossings</td><td class="r">${run.sf_crossings}</td></tr>
+        <tr><td>Middle crossings</td><td class="r">${run.mid_crossings}</td></tr></table>`;
   }
-
-  if(isAdminNameLike(typed)){
-    // Typed something admin-shaped but not an exact known admin name — still block registering as it.
-    userNote.textContent = "שם זה שמור למנהל ולא ניתן להירשם אליו.";
-    userNote.className = "new"; registerFields.style.display="none"; confirmUserBtn.disabled=true;
-    return;
-  }
-
-  userNote.textContent = `"${typed}" לא נמצא — מלאו פלוגה וצוות ולחצו הרשם (גם אם השם כבר תפוס אצל מישהו אחר, זה בסדר)`;
-  userNote.className = "new"; registerFields.style.display="flex"; confirmUserBtn.textContent="הרשם";
-  confirmUserBtn.disabled = !(plugahSelect.value && isValidTzevetValue());
+  const btns = `<div id="map"></div>
+    <div class="btnrow">
+      <a class="btn" href="${API_BASE}/api/gpx/${run.id}">Download GPX</a>
+      <a class="btn ghost" onclick="go('submit')">Submit another</a>
+      <a class="btn ghost" onclick="openRuns()">All runs</a></div>`;
+  v.innerHTML = head + body + btns;
+  drawMap(run);
 }
-function isValidTzevetValue(){ const n=Number(tzevetInput.value); return Number.isInteger(n)&&n>=1&&n<=30; }
-plugahSelect.addEventListener("change", updateUserNote);
-tzevetInput.addEventListener("input", updateUserNote);
-userInput.addEventListener("input", updateUserNote);
-userInput.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); suggestionsEl.style.display="none"; confirmUser(); } });
-confirmUserBtn.addEventListener("click", confirmUser);
-switchUserBtn.addEventListener("click", showPicker);
 
-async function confirmUser(){
-  const typed = userInput.value.trim();
-  if(!typed) return;
-  confirmUserBtn.disabled = true;
+function drawMap(run){
+  if(map){ map.remove(); map=null; }
+  map = L.map("map");
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+  const line = L.polyline(run.track.map(p=>[p[0],p[1]]),{color:"#FC4C02",weight:4,opacity:.9}).addTo(map);
+  map.fitBounds(line.getBounds().pad(0.15));
+  if(COURSE){
+    L.polyline([COURSE.sf[0],COURSE.sf[1]],{color:"#1E9E5A",weight:4}).addTo(map).bindTooltip("Start / finish");
+    L.polyline([COURSE.mid[0],COURSE.mid[1]],{color:"#4c9ffe",weight:4}).addTo(map).bindTooltip("Middle");
+    L.circleMarker(COURSE.p,{radius:6,color:"#242428",fillColor:"#fff",fillOpacity:1}).addTo(map).bindTooltip("Start point");
+  }
+  if(run.valid){
+    L.circleMarker([run.start.lat,run.start.lon],{radius:6,color:"#1E9E5A",fillColor:"#1E9E5A",fillOpacity:1}).addTo(map);
+    L.circleMarker([run.finish.lat,run.finish.lon],{radius:6,color:"#E0392B",fillColor:"#E0392B",fillOpacity:1}).addTo(map);
+  }
+  setTimeout(()=>map.invalidateSize(), 50);
+}
 
-  const existing = labelToPerson[typed];
-  if(existing){ selectPerson(existing); return; }
-
-  const name = safeUsername(typed);
-  const plugah = plugahSelect.value, tzevet = tzevetInput.value;
-  if(!name || !plugah || !isValidTzevetValue()){ setStatus("יש למלא שם, פלוגה (א-ז) וצוות (1-30).","err"); confirmUserBtn.disabled=false; return; }
-
+async function openRuns(){
+  go("runs");
+  const v=document.getElementById("view-runs");
+  v.innerHTML = `<h1>Saved runs</h1><p class="lead muted">Loading…</p>`;
   try{
-    const res = await fetch(WORKER_URL+"/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:name,plugah,tzevet})});
-    const result = await res.json();
-    if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
-    const person = { id:result.id, name:result.name, plugah:result.plugah, tzevet:result.tzevet, isAdmin:false };
-    knownPeople.push(person);
-    buildLabelIndex();
-    registerFields.style.display="none"; plugahSelect.value=""; tzevetInput.value="";
-    selectPerson(person);
-  }catch(e){ setStatus("שגיאה ברישום המשתמש: "+e.message,"err"); confirmUserBtn.disabled=false; }
-}
-
-function selectPerson(person){
-  myUser = person.id;
-  localStorage.setItem("liveloc_user_id", person.id);
-
-  myAdminScope = person.isAdmin
-    ? (person.id==="admin_גדוד" ? {scope:"battalion"} : {scope:"platoon", plugah:person.id.split("_")[1]})
-    : null;
-  myPlugah = person.isAdmin ? (myAdminScope.plugah || null) : person.plugah;
-
-  runTarget=null; runState = myAdminScope ? "admin" : "idle"; runStartMs=null; selfStartAllowed=true; stopClock();
-  lastHandledSignalIssuedAt = null; hideCountdown();
-  if(adminCountdownTimer){ clearInterval(adminCountdownTimer); adminCountdownTimer=null; }
-  adminCountdownEl.textContent = "";
-
-  pickerBlock.style.display="none";
-  activeUserBlock.style.display="block";
-  activeUserName.textContent = person.isAdmin ? person.name : personLabel(person);
-
-  geoBlock.style.display="block";
-  accuracyValue.textContent="מאתר…"; accuracyValue.className="";
-  setStatus("");
-
-  if(stateTimer){ clearInterval(stateTimer); stateTimer=null; }
-
-  if(myAdminScope){
-    adminBlock.style.display="block";
-    runCenter.style.display="none";
-    wrapEl.classList.remove("with-actionbar");
-    actionBar.style.display="none";
-    adminTitle.textContent = myAdminScope.scope==="battalion" ? "ניהול נקודות ציון — כל הגדוד" : `ניהול נקודות ציון — פלוגה ${myAdminScope.plugah}`;
-    sourceBlock.style.display = myAdminScope.scope==="platoon" ? "block" : "none";
-    startLocationWatch();
-    if(myAdminScope.scope==="platoon") loadCheckpointSource();
-    setTimeout(()=>{ if(map) map.invalidateSize(); }, 60);
-  }else{
-    adminBlock.style.display="none";
-    runCenter.style.display="block";
-    wrapEl.classList.add("with-actionbar");
-    actionBar.style.display="block";
-    startLocationWatch();
-    refreshMyState();
-    refreshCheckpoints();
-    stateTimer = setInterval(()=>{ refreshMyState(); refreshCheckpoints(); pollSignal(); }, REFRESH_INTERVAL);
+    const rows = await api("/api/runs");
+    if(!rows.length){ v.innerHTML = `<h1>Saved runs</h1><p class="muted">No runs yet. <a onclick="go('privacy')">Add the first one →</a></p>`; return; }
+    const body = rows.map((r,i)=>`<tr>
+      <td>${i+1}</td><td><b>${esc(r.name)}</b></td><td class="muted">${esc(r.team)||"—"}</td>
+      <td class="muted">${esc(r.athlete)||"—"}</td>
+      <td class="time">${r.valid?fmt(r.total_s):"—"}</td>
+      <td>${r.valid?'<span class="badge ok">valid</span>':'<span class="badge bad">invalid</span>'}</td>
+      <td class="muted">${(r.created||"").slice(0,10)}</td>
+      <td><a onclick="openRun(${r.id})">view</a></td></tr>`).join("");
+    v.innerHTML = `<h1>Saved runs</h1><p class="lead">Fastest first.</p>
+      <table class="runs"><thead><tr><th>#</th><th>Name</th><th>Team</th><th>Athlete</th><th>Time</th><th>Status</th><th>When</th><th></th></tr></thead>
+      <tbody>${body}</tbody></table>`;
+  }catch(e){
+    v.innerHTML = `<h1>Saved runs</h1><div class="alert err">${esc(e.message)}</div>`;
   }
 }
-
-function showPicker(){
-  stopLocationWatch();
-  if(stateTimer){ clearInterval(stateTimer); stateTimer=null; }
-  if(adminCountdownTimer){ clearInterval(adminCountdownTimer); adminCountdownTimer=null; }
-  hideCountdown();
-
-  myUser=null; myAdminScope=null; myPlugah=null;
-  localStorage.removeItem("liveloc_user_id");
-  myPos=null; firstLocation=true;
-  runTarget=null; runState="idle"; runStartMs=null; stopClock();
-
-  sendBtn.disabled=true; sendBtn.textContent="שלח מרחק"; stopBtn.style.display="none";
-  setStatus("");
-
-  activeUserBlock.style.display="none";
-  geoBlock.style.display="none";
-  runCenter.style.display="none";
-  adminBlock.style.display="none";
-  wrapEl.classList.remove("with-actionbar");
-  actionBar.style.display="none";
-  pickerBlock.style.display="block";
-  userInput.value=""; updateUserNote(); userInput.focus();
+async function openRun(id){
+  try{ const run = await api("/api/run/"+id); await renderResult(run); go("result"); }
+  catch(e){ alert(e.message); }
 }
 
-async function loadUsers(){
-  try{
-    const res = await fetch(WORKER_URL+"/api/users");
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const data = await res.json();
-    knownAdmins = data.admins || [];
-    knownPeople = data.people || [];
-    buildLabelIndex();
-
-    const savedId = localStorage.getItem("liveloc_user_id");
-    if(savedId){
-      const found = knownAdmins.includes(savedId)
-        ? { id:savedId, name:savedId, isAdmin:true }
-        : knownPeople.find(p => p.id===savedId);
-      if(found){ selectPerson(found); return; }
-    }
-    showPicker();
-  }catch(e){ setStatus("שגיאה בטעינת המשתמשים.","err"); showPicker(); }
-}
-
-/* ===================== geolocation (shared by admin + runner) ===================== */
-
-function accuracyIsGood(){ return myPos && Number.isFinite(myPos.accuracy) && myPos.accuracy<=ACCURACY_LIMIT; }
-
-function updateAccuracyUI(){
-  if(!myPos){ accuracyValue.textContent="מאתר…"; accuracyValue.className=""; applyRunGating(); return; }
-  const acc = Math.round(myPos.accuracy);
-  accuracyValue.textContent = `±${acc} מ׳`;
-  accuracyValue.className = myPos.accuracy<=ACCURACY_LIMIT ? "good" : "bad";
-  applyRunGating();
-}
-
-function startLocationWatch(){
-  stopLocationWatch();
-  if(!navigator.geolocation){ accuracyValue.textContent="לא נתמך"; setStatus("הדפדפן לא תומך במיקום.","err"); return; }
-  myPos=null; firstLocation=true; updateAccuracyUI();
-  watchId = navigator.geolocation.watchPosition(pos=>{
-    myPos = {lat:pos.coords.latitude, lon:pos.coords.longitude, accuracy:pos.coords.accuracy};
-    if(runState==="started" && accuracyIsGood()) pushGpsSample(myPos.lat, myPos.lon);
-    updateMyLocationOnMap();
-    updateAccuracyUI();
-  }, err=>{
-    if(err.code===err.PERMISSION_DENIED) setStatus("יש לאשר הרשאת מיקום מדויקת.","err");
-    else setStatus("שגיאת מיקום: "+err.message,"err");
-  }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
-}
-function stopLocationWatch(){ if(watchId!==null){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
-
-/* ===================== checkpoints (runner) ===================== */
-
-async function refreshCheckpoints(){
-  try{
-    const res = await fetch(WORKER_URL+"/api/checkpoints?plugah="+encodeURIComponent(myPlugah||""), {cache:"no-store"});
-    const data = await res.json();
-    checkpointPositions = { start: data.start || null, middle: data.middle || null };
-    applyRunGating();
-  }catch(e){}
-}
-
-/* ===================== run state / timer (runner) ===================== */
-
-// A run = touch Start to begin, then touch Start again (7+ minutes later) to finish.
-// Middle is still shown (if set) but no longer required to complete a run.
-const RUN_BUTTON_LABEL = { idle:"התחל ריצה", started:"סיים ריצה" };
-let minRunMs = 1*60*1000;       // default; refreshed from the server
-let autoFinishInFlight = false; // guards against double-sending the auto finish
-
-async function refreshMyState(){
-  if(!myUser || myAdminScope) return;
-  try{
-    const res = await fetch(WORKER_URL+"/api/mystate?user="+encodeURIComponent(myUser));
-    const data = await res.json();
-    if(data.target){
-      const wasIdle = runState !== "started";
-      runTarget=data.target; runState=data.state;
-      if(data.minRunMs) minRunMs = data.minRunMs;
-      selfStartAllowed = data.selfStartAllowed !== false;
-      if(runState==="started" && wasIdle) autoFinishInFlight = false; // fresh run just picked up
-      applyRunTimer(data.current); applyRunGating();
-    }
-  }catch(e){}
-}
-function applyRunTimer(current){
-  const wasRunning = runStartMs != null;
-  if(current && current.start){
-    const newStartMs = Date.parse(current.start);
-    if(newStartMs !== runStartMs) gpsHistory = []; // fresh run — clear the rolling pace window
-    runStartMs = newStartMs; legStartMs = runStartMs;
-    startClock();
-    if(!wasRunning) requestWakeLock();
-  }else{
-    runStartMs=null; legStartMs=null; gpsHistory=[];
-    stopClock();
-    if(wasRunning) releaseWakeLock();
-  }
-}
-
-/* ===================== keep screen awake while running (best-effort) ===================== */
-
-let wakeLock = null;
-async function requestWakeLock(){
-  try{
-    if('wakeLock' in navigator){
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', ()=>{ wakeLock=null; });
-    }
-  }catch(e){ /* not supported / denied — fine, just no-op */ }
-}
-function releaseWakeLock(){
-  if(wakeLock){ wakeLock.release().catch(()=>{}); wakeLock=null; }
-}
-document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible' && runState === 'started' && !wakeLock) requestWakeLock();
-});
-function startClock(){ if(clockTimer) return; clockTimer=setInterval(applyRunGating, 1000); }
-function stopClock(){ if(clockTimer){ clearInterval(clockTimer); clockTimer=null; } runTimerEl.textContent="00:00"; }
-
-function formatPace(minPerKm){
-  if(minPerKm==null || !isFinite(minPerKm) || minPerKm<=0) return "—:— / ק\"מ";
-  const totalSec = Math.round(minPerKm*60);
-  return String(Math.floor(totalSec/60)).padStart(2,"0") + ":" + String(totalSec%60).padStart(2,"0") + " / ק\"מ";
-}
-
-// Rolling pace: computed client-side from the last few real GPS fixes (actual distance
-// walked between them), not a straight line to any checkpoint — closer to a real pace.
-const PACE_WINDOW_MS = 45000;  // only keep samples from the last 45s
-const PACE_MIN_POINTS = 2;
-
-function pushGpsSample(lat, lon){
-  const t = Date.now();
-  gpsHistory.push({ lat, lon, t });
-  const cutoff = t - PACE_WINDOW_MS;
-  while(gpsHistory.length > 1 && gpsHistory[0].t < cutoff) gpsHistory.shift();
-}
-
-function currentPace(){
-  if(gpsHistory.length < PACE_MIN_POINTS) return null;
-  let distKm = 0;
-  for(let i=1;i<gpsHistory.length;i++){
-    const a = gpsHistory[i-1], b = gpsHistory[i];
-    distKm += distanceKm(a.lat, a.lon, b.lat, b.lon);
-  }
-  const elapsedMin = (gpsHistory[gpsHistory.length-1].t - gpsHistory[0].t)/60000;
-  if(distKm < 0.015 || elapsedMin <= 0) return null; // not enough real movement yet for a stable number
-  return elapsedMin / distKm;
-}
-
-function applyRunGating(){
-  if(!myUser || myAdminScope){ runTimerEl.textContent=""; runDistanceEl.textContent=""; runPaceEl.textContent=""; return; }
-  runTimerEl.textContent = runStartMs==null ? "00:00" : formatElapsed(Date.now()-runStartMs);
-  stopBtn.style.display = (runState==="started") ? "block" : "none";
-  runPaceEl.textContent = (runState==="started") ? formatPace(currentPace()) : "";
-
-  if(!myPos || !accuracyIsGood()){ sendBtn.disabled=true; return; }
-  if(!runTarget){ sendBtn.disabled=true; sendBtn.textContent="טוען מצב…"; runDistanceEl.textContent=""; return; }
-
-  if(runState==="idle" && !selfStartAllowed){
-    sendBtn.disabled = true;
-    sendBtn.textContent = "ממתינים להזנקה";
-    runDistanceEl.textContent = "רק מדא\"גית יכולה להתחיל עבורכם את הריצה";
-    return;
-  }
-
-  sendBtn.textContent = RUN_BUTTON_LABEL[runState] || RUN_BUTTON_LABEL.idle;
-  const startPos = checkpointPositions.start;
-  if(!startPos){ sendBtn.disabled=true; runDistanceEl.textContent="ממתין למיקום של Start…"; return; }
-
-  const distM = Math.round(distanceKm(myPos.lat,myPos.lon,startPos.lat,startPos.lon)*1000);
-  const inRange = distM <= ACCURACY_LIMIT;
-
-  runDistanceEl.textContent = `מרחק מ-Start: ${distM} מ׳`;
-
-  if(runState==="started"){
-    const eligible = inRange && (Date.now()-runStartMs) >= minRunMs;
-    sendBtn.disabled = !eligible;
-    if(eligible && !autoFinishInFlight){
-      autoFinishInFlight = true;
-      sendCheckIn();
-    }
-  }else{
-    sendBtn.disabled = !inRange;
-  }
-}
-
-/* ===================== send / stop (runner) ===================== */
-
-async function sendCheckIn(){
-  if(!myUser || !myPos) return;
-  sendBtn.disabled = true;
-  const wasStarted = runState === "started";
-  sendBtn.textContent = "שולח…";
-  try{
-    const res = await fetch(WORKER_URL+"/api/location",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({user:myUser, lat:myPos.lat, lon:myPos.lon})});
-    const result = await res.json();
-    if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
-
-    if(result.near) setStatus(wasStarted ? `✅ הריצה הסתיימה ונשלחה — ${result.near.timestamp}` : `✅ הריצה התחילה — ${result.near.timestamp}`, "ok");
-    else if(result.selfStartBlocked) setStatus("רק מדא\"גית יכולה להתחיל עבורכם את הריצה — המתינו להזנקה.","err");
-    else if(result.tooSoon) setStatus("לא ניתן לסיים כרגע — נסו שוב בעוד רגע.","err");
-    else setStatus("לא היית בטווח — נסו שוב כשתתקרבו.","err");
-
-    if(result.minRunMs) minRunMs = result.minRunMs;
-    if(result.target){
-      runTarget=result.target; runState=result.state;
-      if(typeof result.selfStartBlocked === "boolean" && result.selfStartBlocked) selfStartAllowed=false;
-      applyRunTimer(result.current);
-    }
-    if(result.near) autoFinishInFlight = false; // run closed or opened cleanly; next run starts fresh
-    await refreshCheckpoints();
-    applyRunGating();
-    return result;
-  }catch(e){ setStatus("שגיאה בשליחה: "+e.message,"err"); }
-  finally{ autoFinishInFlight = false; updateAccuracyUI(); }
-}
-
-sendBtn.addEventListener("click", async ()=>{
-  if(myPos && myPos.accuracy>ACCURACY_LIMIT){ updateAccuracyUI(); return; }
-  await sendCheckIn();
-});
-
-stopBtn.addEventListener("click", async ()=>{
-  if(!confirm("לעצור את הריצה הנוכחית? הנתונים של הריצה הזו יימחקו ולא ייספרו.")) return;
-  stopBtn.disabled = true;
-  try{
-    const res = await fetch(WORKER_URL+"/api/stop-run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:myUser})});
-    const result = await res.json();
-    if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
-    setStatus("הריצה נעצרה.","ok");
-    runStartMs=null; stopClock();
-    await refreshMyState();
-  }catch(e){ setStatus("שגיאה בעצירת הריצה: "+e.message,"err"); }
-  finally{ stopBtn.disabled=false; }
-});
-
-/* ===================== admin: checkpoints + source + signal ===================== */
-
-function sendAdminCheckpoint(point){
-  if(!myPos){ cpStatus.textContent="ממתין למיקום שלך…"; return; }
-  cpStatus.textContent = "שולח…";
-  fetch(WORKER_URL+"/api/set-checkpoint",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({user:myUser, point, lat:myPos.lat, lon:myPos.lon})})
-    .then(r=>r.json())
-    .then(result=>{
-      if(result.error) throw new Error(result.error);
-      cpStatus.textContent = `${point==="start"?"Start":"Middle"} עודכן בהצלחה (±${Math.round(myPos.accuracy)} מ׳).`;
-      checkpointPositions[point] = { lat:myPos.lat, lon:myPos.lon };
-      renderCheckpointsOnMap();
-    })
-    .catch(e=> cpStatus.textContent = "שגיאה: "+e.message);
-}
-setStartBtn.addEventListener("click", ()=>sendAdminCheckpoint("start"));
-setMiddleBtn.addEventListener("click", ()=>sendAdminCheckpoint("middle"));
-
-async function loadCheckpointSource(){
-  try{
-    const res = await fetch(WORKER_URL+"/api/checkpoints?plugah="+encodeURIComponent(myPlugah), {cache:"no-store"});
-    const data = await res.json();
-    checkpointPositions = { start:data.start||null, middle:data.middle||null };
-    renderCheckpointsOnMap();
-    document.querySelectorAll('input[name="cpSource"]').forEach(r => r.checked = (r.value === (data.source || "global")));
-    document.querySelectorAll('input[name="selfStart"]').forEach(r => r.checked = (r.value === (data.selfStart===false ? "off" : "on")));
-  }catch(e){}
-}
-document.querySelectorAll('input[name="cpSource"]').forEach(radio=>{
-  radio.addEventListener("change", async (e)=>{
-    if(!e.target.checked) return;
-    cpStatus.textContent = "מעדכן...";
-    try{
-      const res = await fetch(WORKER_URL+"/api/set-checkpoint-source",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({user:myUser, source:e.target.value})});
-      const result = await res.json();
-      if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
-      cpStatus.textContent = e.target.value==="own" ? "הפלוגה שלך תשתמש בנקודות שלה." : "הפלוגה שלך תשתמש בנקודות הגדודיות.";
-      await loadCheckpointSource();
-    }catch(e){ cpStatus.textContent = "שגיאה: "+e.message; }
-  });
-});
-document.querySelectorAll('input[name="selfStart"]').forEach(radio=>{
-  radio.addEventListener("change", async (e)=>{
-    if(!e.target.checked) return;
-    const allowed = e.target.value === "on";
-    cpStatus.textContent = "מעדכן...";
-    try{
-      const res = await fetch(WORKER_URL+"/api/set-self-start",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({user:myUser, allowed})});
-      const result = await res.json();
-      if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
-      cpStatus.textContent = allowed ? "הפלוגה יכולה להתחיל ריצה בעצמה." : "הפלוגה תמתין להזנקה כדי להתחיל.";
-    }catch(e){ cpStatus.textContent = "שגיאה: "+e.message; }
-  });
-});
-
-signalBtn.addEventListener("click", async ()=>{
-  const seconds = Number(signalSeconds.value);
-  if(!Number.isInteger(seconds) || seconds<1 || seconds>600){ cpStatus.textContent="בחרו מספר שניות בין 1 ל-600."; return; }
-  signalBtn.disabled = true;
-  try{
-    const res = await fetch(WORKER_URL+"/api/start-signal",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({user:myUser, seconds})});
-    const result = await res.json();
-    if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
-    runAdminCountdown(result.issuedAt + result.seconds*1000);
-  }catch(e){ cpStatus.textContent = "שגיאה: "+e.message; }
-  finally{ signalBtn.disabled=false; }
-});
-
-cancelSignalBtn.addEventListener("click", async ()=>{
-  cancelSignalBtn.disabled = true;
-  try{
-    const res = await fetch(WORKER_URL+"/api/cancel-signal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:myUser})});
-    const result = await res.json();
-    if(!res.ok || result.error) throw new Error(result.error || ("HTTP "+res.status));
-    if(adminCountdownTimer){ clearInterval(adminCountdownTimer); adminCountdownTimer=null; }
-    adminCountdownEl.textContent = "ההזנקה בוטלה.";
-    setTimeout(()=>{ adminCountdownEl.textContent=""; }, 2500);
-  }catch(e){ cpStatus.textContent = "שגיאה בביטול: "+e.message; }
-  finally{ cancelSignalBtn.disabled=false; }
-});
-
-// Small, non-blocking countdown shown to the admin (the map stays fully visible).
-function runAdminCountdown(deadline){
-  if(adminCountdownTimer) clearInterval(adminCountdownTimer);
-  adminCountdownTimer = setInterval(()=>{
-    const remaining = Math.ceil((deadline-Date.now())/1000);
-    if(remaining>0){ adminCountdownEl.textContent = `⏱ ${remaining} שניות עד ההזנקה`; }
-    else{
-      adminCountdownEl.textContent = "🏁 זינוק!";
-      clearInterval(adminCountdownTimer); adminCountdownTimer=null;
-      setTimeout(()=>{ adminCountdownEl.textContent=""; }, 2500);
-    }
-  }, 200);
-}
-
-/* ===================== signal polling + fullscreen countdown (runner only) ===================== */
-
-function showCountdown(){ countdownOverlay.classList.add("show"); }
-function hideCountdown(){ countdownOverlay.classList.remove("show"); if(countdownTimer){ clearInterval(countdownTimer); countdownTimer=null; } }
-
-async function pollSignal(){
-  if(!myUser || myAdminScope || runState!=="idle") return;
-  try{
-    const res = await fetch(WORKER_URL+"/api/signal?plugah="+encodeURIComponent(myPlugah||""), {cache:"no-store"});
-    const data = await res.json();
-    const sig = data.signal;
-    if(!sig) return;
-    const deadline = sig.issuedAt + sig.seconds*1000;
-    if(Date.now() >= deadline) return;
-    if(sig.issuedAt === lastHandledSignalIssuedAt) return;
-    lastHandledSignalIssuedAt = sig.issuedAt;
-    runCountdown(deadline);
-  }catch(e){}
-}
-
-function runCountdown(deadline){
-  showCountdown();
-  countdownLabel.textContent = "הזנקה — התכוננו!";
-  if(countdownTimer) clearInterval(countdownTimer);
-  let tick = 0;
-  countdownTimer = setInterval(async ()=>{
-    tick++;
-    if(tick % 10 === 0){ // ~ once a second: check the signal is still live (admin may have cancelled it)
-      try{
-        const res = await fetch(WORKER_URL+"/api/signal?plugah="+encodeURIComponent(myPlugah||""), {cache:"no-store"});
-        const data = await res.json();
-        if(!data.signal || data.signal.issuedAt !== lastHandledSignalIssuedAt){
-          clearInterval(countdownTimer); countdownTimer=null;
-          hideCountdown();
-          setStatus("ההזנקה בוטלה על ידי המפקד.","err");
-          return;
-        }
-      }catch(e){}
-    }
-    const remaining = Math.ceil((deadline - Date.now())/1000);
-    if(remaining > 0){
-      countdownNumber.textContent = remaining;
-    }else{
-      clearInterval(countdownTimer); countdownTimer=null;
-      countdownNumber.textContent = "0";
-      countdownLabel.textContent = "רוץ!";
-      const result = await sendCheckIn();
-      setTimeout(()=>{
-        hideCountdown();
-        if(!result || !result.near) setStatus("ההזנקה עברה — לא נרשמת (לא היית בטווח).","err");
-      }, 900);
-    }
-  }, 100);
-}
-
-/* ===================== init ===================== */
-
-initMap();
-loadUsers();
+go("privacy");
 </script>
 </body>
 </html>
