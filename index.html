@@ -193,35 +193,19 @@ async function doSubmit(){
   }
 }
 
-async function renderResult(run){
-  await getCourse();
+function renderResult(run){
   const v = document.getElementById("view-result");
-  const head = `<h1 style="margin-bottom:2px">${esc(run.name)}${run.team?` <span class="muted" style="font-weight:600">· ${esc(run.team)}</span>`:""}</h1>
-    <div class="meta">${run.athlete?`<span>ספורטאי: <b>${esc(run.athlete)}</b></span>`:""}
-      ${run.activity?`<span>פעילות: <b>${esc(run.activity)}</b></span>`:""}
-      <span>נקודות: <b>${run.points}</b></span></div>`;
-  let body;
-  if(run.valid){
-    body = `<div class="verdict ok"><span class="tag">✓ חוקי</span><span class="muted">— עבר התחלה, אמצע וסיום לפי הסדר</span></div>
-      <div class="bigtime">${fmt(run.total_s)}<span class="u">זמן סופי</span></div>
-      <table class="kv">
-        <tr><td>זמן חצייה-לחצייה (בסיס)</td><td class="r">${fmt(run.base_s)}</td></tr>
-        <tr><td>תוספת התחלה (${run.d_start_m.toFixed(1)} מ')</td><td class="r">+${fmt(run.add_start_s)}</td></tr>
-        <tr><td>תוספת סיום (${run.d_finish_m.toFixed(1)} מ')</td><td class="r">+${fmt(run.add_finish_s)}</td></tr>
-      </table>`;
-  } else {
-    body = `<div class="verdict bad"><span class="tag">✗ לא חוקי</span><span class="muted">— ${esc(reasonHe(run.reason))}</span></div>
-      <table class="kv">
-        <tr><td>חציות קו התחלה/סיום</td><td class="r">${run.sf_crossings}</td></tr>
-        <tr><td>חציות קו אמצע</td><td class="r">${run.mid_crossings}</td></tr></table>`;
-  }
-  const btns = `<div id="map"></div>
-    <div class="btnrow">
-      <a class="btn" href="${API_BASE}/api/gpx/${run.id}">הורדת GPX</a>
-      <a class="btn ghost" onclick="go('submit')">שליחת ריצה נוספת</a>
-      <a class="btn ghost" onclick="openRuns()">כל הריצות</a></div>`;
-  v.innerHTML = head + body + btns;
-  drawMap(run);
+  v.innerHTML = `
+    <div style="text-align:center;padding:16px 8px 8px">
+      <div style="width:74px;height:74px;margin:0 auto 18px;border-radius:50%;background:rgba(30,158,90,.12);display:flex;align-items:center;justify-content:center">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1E9E5A" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+      </div>
+      <h1>הריצה התקבלה בהצלחה</h1>
+      <p class="lead" style="margin-bottom:0">תודה${run && run.name ? ", " + esc(run.name) : ""}! קיבלנו את הריצה.</p>
+      <div class="btnrow" style="max-width:340px;margin:24px auto 0">
+        <a class="btn block" onclick="go('submit')">שליחת ריצה נוספת</a>
+      </div>
+    </div>`;
 }
 
 function drawMap(run){
