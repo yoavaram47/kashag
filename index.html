@@ -1,24 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Course Timer</title>
+<title>בדיקת ריצה</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{--orange:#FC4C02;--orange-dark:#E34402;--ink:#242428;--muted:#6D6D78;--bg:#F5F5F7;
   --card:#fff;--line:#E7E7EC;--ok:#1E9E5A;--bad:#E0392B;--shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.05)}
 *{box-sizing:border-box}html,body{margin:0}
-body{font-family:'Inter',system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+body{font-family:'Heebo',system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
 a{color:var(--orange);text-decoration:none}a:hover{text-decoration:underline}
 .top{background:var(--orange);color:#fff}
 .top .wrap{max-width:900px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:10px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:#fff;cursor:pointer}
-.brand small{font-weight:600;opacity:.85;font-size:12px;letter-spacing:.5px}
-.top .spacer{flex:1}.top .navlink{color:#fff;opacity:.92;font-weight:600;font-size:14px;cursor:pointer}
+.brand{display:flex;align-items:center;gap:10px;cursor:pointer}
+.top .spacer{flex:1}.top .navlink{color:#fff;opacity:.92;font-weight:700;font-size:14px;cursor:pointer}
 .wrap{max-width:900px;margin:0 auto;padding:24px 20px 56px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:var(--shadow)}
 h1{font-size:26px;font-weight:800;margin:0 0 6px;letter-spacing:-.2px}
@@ -26,21 +25,25 @@ p.lead{color:var(--muted);margin:0 0 20px}.muted{color:var(--muted)}
 .steps{display:flex;gap:8px;margin:0 auto 22px;max-width:520px}
 .steps .s{flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:8px 6px;border-radius:10px;background:#ECECF1;border:1px solid var(--line)}
 .steps .s.active{background:var(--orange);color:#fff;border-color:var(--orange)}
-.steps .s .n{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:#D9D9E1;color:#fff;margin-right:6px;font-size:11px}
+.steps .s .n{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:#D9D9E1;color:#fff;margin-inline-end:6px;font-size:11px}
 .steps .s.active .n{background:rgba(255,255,255,.3)}
 .setting{display:flex;gap:14px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#FCFCFD}
 .setting+.setting{margin-top:12px}
 .setting .ic{flex:none;width:40px;height:40px;border-radius:10px;background:rgba(252,76,2,.1);display:flex;align-items:center;justify-content:center;color:var(--orange)}
-.setting h3{margin:0 0 4px;font-size:15px}.setting ol{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:14px}
-.pill{display:inline-block;background:var(--ink);color:#fff;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700}
+.setting h3{margin:0 0 4px;font-size:15px;display:flex;align-items:center;gap:8px}
+.setting h3 .pill{margin-inline-start:auto}
+.setting ol{margin:8px 0 0;padding-inline-start:20px;color:var(--muted);font-size:14px}
+.setting ol li{margin-bottom:3px}
+.pill{display:inline-block;background:var(--ink);color:#fff;border-radius:6px;padding:1px 8px;font-size:12px;font-weight:700;direction:ltr;unicode-bidi:isolate}
+.ltr{direction:ltr;unicode-bidi:isolate;white-space:nowrap}
 .video-box{margin:20px 0 4px;border:2px dashed var(--line);border-radius:14px;overflow:hidden;background:#FAFAFC}
 .video-box video{display:block;width:100%;background:#000}
 .video-ph{padding:40px 20px;text-align:center;color:var(--muted)}.video-ph .big{font-size:40px;line-height:1}
 .field{margin-bottom:16px}label{display:block;font-weight:700;font-size:13px;margin-bottom:6px}
-input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff;color:var(--ink)}
+input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff;color:var(--ink);font-family:inherit}
 input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(252,76,2,.15)}
 .hint{color:var(--muted);font-size:12px;margin-top:6px}
-.btn{display:inline-block;background:var(--orange);color:#fff;border:0;border-radius:10px;padding:13px 22px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+.btn{display:inline-block;background:var(--orange);color:#fff;border:0;border-radius:10px;padding:13px 22px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;font-family:inherit}
 .btn:hover{background:var(--orange-dark);color:#fff;text-decoration:none}.btn.block{display:block;width:100%}
 .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{background:#F2F2F6;color:var(--ink)}
 .btn[disabled]{opacity:.6;cursor:default}
@@ -50,93 +53,93 @@ input:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(25
 .verdict{display:flex;align-items:center;gap:12px;padding:16px 18px;border-radius:12px;margin:16px 0}
 .verdict.ok{background:rgba(30,158,90,.1);color:var(--ok)}.verdict.bad{background:rgba(224,57,43,.1);color:var(--bad)}
 .verdict .tag{font-size:20px;font-weight:800;letter-spacing:.5px}
-.bigtime{font-size:44px;font-weight:800;letter-spacing:-.5px;line-height:1}.bigtime .u{font-size:15px;font-weight:600;color:var(--muted);margin-left:6px}
+.bigtime{font-size:44px;font-weight:800;letter-spacing:-.5px;line-height:1;direction:ltr;text-align:start}
+.bigtime .u{font-size:15px;font-weight:600;color:var(--muted);margin-inline-start:6px}
 .kv{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}.kv td{padding:8px 2px;border-bottom:1px solid var(--line)}
-.kv td.r{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.kv td.r{text-align:left;color:var(--muted);font-variant-numeric:tabular-nums;direction:ltr}
 #map{height:360px;border-radius:12px;margin-top:16px;border:1px solid var(--line)}
 .meta{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin-top:4px}.meta b{color:var(--ink)}
 table.runs{width:100%;border-collapse:collapse;font-size:14px}
-table.runs th,table.runs td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left}
-table.runs th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
-table.runs td.time{font-weight:700;font-variant-numeric:tabular-nums}
+table.runs th,table.runs td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:right}
+table.runs th{font-size:12px;letter-spacing:.2px;color:var(--muted);font-weight:700}
+table.runs td.time{font-weight:700;font-variant-numeric:tabular-nums;direction:ltr}
 .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
 .badge.ok{background:rgba(30,158,90,.12);color:var(--ok)}.badge.bad{background:rgba(224,57,43,.12);color:var(--bad)}
 footer{max-width:900px;margin:0 auto;padding:10px 20px 40px;color:var(--muted);font-size:12px}
 .hidden{display:none}
-.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:8px}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-inline-end:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div class="top"><div class="wrap">
-  <div class="brand" onclick="go('privacy')">
-    <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 2 4 20l5-2 3 4 3-4 5 2L12 2z" fill="#fff"/></svg>
-    COURSE&nbsp;TIMER <small>· SEGMENT</small>
+  <div class="brand" onclick="go('privacy')" title="דף הבית">
+    <svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 2 4 20l5-2 3 4 3-4 5 2L12 2z" fill="#fff"/></svg>
   </div>
   <div class="spacer"></div>
-  <div class="navlink" onclick="openRuns()">All runs</div>
+  <div class="navlink" onclick="openRuns()">כל הריצות</div>
 </div></div>
 
 <div class="wrap">
   <div class="steps" id="steps">
-    <div class="s" data-step="1"><span class="n">1</span>Privacy</div>
-    <div class="s" data-step="2"><span class="n">2</span>Your run</div>
-    <div class="s" data-step="3"><span class="n">3</span>Result</div>
+    <div class="s" data-step="1"><span class="n">1</span>פרטיות</div>
+    <div class="s" data-step="2"><span class="n">2</span>הריצה שלך</div>
+    <div class="s" data-step="3"><span class="n">3</span>תוצאה</div>
   </div>
 
-  <!-- STEP 1 : PRIVACY -->
+  <!-- שלב 1: פרטיות -->
   <div id="view-privacy" class="card">
-    <h1>First, make your run readable</h1>
-    <p class="lead">We pull your GPS track straight from your public activity — no login, no app to install.
-      For that to work, these settings must be <span class="pill">Everyone</span>. Takes 30 seconds.</p>
-    <div class="setting"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
-      <div><h3>Profile Page → <span class="pill">Everyone</span></h3>
-        <ol><li>Strava → <b>Settings</b> → <b>Privacy Controls</b></li><li>Open <b>Profile Page</b></li><li>Choose <b>Everyone</b></li></ol></div></div>
-    <div class="setting"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div>
-      <div><h3>Flyby → <span class="pill">Everyone</span></h3>
-        <ol><li>Same <b>Privacy Controls</b> screen</li><li>Open <b>Flyby</b></li><li>Choose <b>Everyone</b></li></ol></div></div>
+    <h1>קודם — שהריצה תהיה ציבורית</h1>
+    <div class="setting"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 3v5c0 4-3 7-7 8-4-1-7-4-7-8V6l7-3z"/></svg></div>
+      <div style="flex:1"><h3>פרטיות הפרופיל<span class="pill">Everyone</span></h3>
+        <ol><li>בסטרבה: <span class="ltr"><b>Settings › Privacy Controls</b></span></li><li>מגדירים את <span class="ltr"><b>Profile Page</b></span> ואת <span class="ltr"><b>Flyby</b></span> ל־<span class="pill">Everyone</span></li></ol></div></div>
     <div class="setting"><div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
-      <div><h3>The activity itself → <span class="pill">Everyone</span></h3>
-        <ol><li>Open the run → <b>⋯</b> → <b>Edit</b></li><li>Set <b>Who can see</b> to <b>Everyone</b></li></ol></div></div>
+      <div style="flex:1"><h3>הפעילות עצמה<span class="pill">Everyone</span></h3>
+        <ol><li>פותחים את הריצה, לוחצים ⋯ ואז עריכה</li><li>מגדירים <span class="ltr"><b>Who can see</b></span> ל־<span class="pill">Everyone</span></li></ol></div></div>
     <div class="video-box" id="videoBox"></div>
-    <div class="btnrow"><a class="btn block" onclick="go('submit')">I’ve set all three to Everyone → Continue</a></div>
+    <div class="btnrow"><a class="btn block" onclick="go('submit')">הגדרתי הכול ל־Everyone · המשך</a></div>
   </div>
 
-  <!-- STEP 2 : SUBMIT -->
+  <!-- שלב 2: שליחה -->
   <div id="view-submit" class="card hidden">
-    <h1>Submit your run</h1>
-    <p class="lead">Paste the link to your public Strava activity. In the app: open the run →
-      <b>Share</b> → <b>Copy Link</b>.</p>
+    <h1>שליחת הריצה</h1>
     <div id="submitErr" class="alert err hidden"></div>
-    <div class="field"><label for="name">Name</label><input id="name" type="text" placeholder="Your name"></div>
-    <div class="field"><label for="team">Team <span class="muted">(optional)</span></label><input id="team" type="text" placeholder="Your team"></div>
-    <div class="field"><label for="link">Strava run link</label>
-      <input id="link" type="url" placeholder="https://strava.app.link/…  or  https://www.strava.com/activities/123…">
-      <div class="hint">Works with app share links (strava.app.link/…) and normal activity links.</div></div>
+    <div class="field"><label for="name">שם</label><input id="name" type="text" placeholder="השם שלך"></div>
+    <div class="field"><label for="team">צוות</label><input id="team" type="text" placeholder="הצוות שלך"></div>
+    <div class="field"><label for="link">קישור לריצה בסטרבה</label>
+      <input id="link" type="url" dir="ltr" placeholder="https://strava.app.link/…">
+      <div class="hint">עובד עם קישורי אפליקציה <span class="ltr">(strava.app.link/…)</span> וגם עם קישורים רגילים.</div></div>
     <div class="btnrow">
-      <a class="btn ghost" onclick="go('privacy')">Back</a>
-      <button class="btn" id="checkBtn" onclick="doSubmit()">Check my run</button>
+      <a class="btn ghost" onclick="go('privacy')">חזרה</a>
+      <button class="btn" id="checkBtn" onclick="doSubmit()">בדקו את הריצה</button>
     </div>
   </div>
 
-  <!-- STEP 3 : RESULT -->
+  <!-- שלב 3: תוצאה -->
   <div id="view-result" class="card hidden"></div>
 
-  <!-- RUNS -->
+  <!-- ריצות -->
   <div id="view-runs" class="card hidden"></div>
 </div>
 
-<footer>Not affiliated with Strava. GPS data is fetched from public activities only.</footer>
+<footer>לא מסונף לסטרבה. הנתונים נשאבים מפעילויות ציבוריות בלבד.</footer>
 
 <script>
 // ─────────────────────────────────────────────────────────────
-//  CONFIG — fill these two in
+//  הגדרות — למלא את שתי השורות האלה
 // ─────────────────────────────────────────────────────────────
-const API_BASE = "https://kashag.yoav-aram-47.workers.dev"; // <-- your Cloudflare Worker URL
-const VIDEO_URL = "";  // <-- optional: URL of the how-to video (leave "" to show a placeholder)
+const API_BASE = "https://kashag.yoav-aram-47.workers.dev"; // <-- כתובת ה-Worker שלך ב-Cloudflare
+const VIDEO_URL = "instructions%20video.mp4";  // קובץ הסרטון באותו ריפו (רווח מקודד כ-%20)
 // ─────────────────────────────────────────────────────────────
 
 let COURSE = null, map = null;
+
+const REASON_HE = {
+  "did not cross the start/finish line": "לא חצתה את קו ההתחלה/סיום",
+  "did not cross the middle line after the start": "לא חצתה את קו האמצע אחרי ההתחלה",
+  "did not return across the finish line after the middle": "לא חזרה דרך קו הסיום אחרי האמצע",
+};
+const reasonHe = r => REASON_HE[r] || r || "";
 
 function go(view){
   for (const v of ["privacy","submit","result","runs"])
@@ -156,16 +159,15 @@ function fmt(sec){
 }
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-// video placeholder
 document.getElementById("videoBox").innerHTML = VIDEO_URL
   ? `<video controls preload="metadata" src="${esc(VIDEO_URL)}"></video>`
-  : `<div class="video-ph"><div class="big">▶</div><div style="margin-top:8px">A short how-to video will play here.</div>
-     <div class="hint">Set <code>VIDEO_URL</code> at the top of index.html to show it.</div></div>`;
+  : `<div class="video-ph"><div class="big">▶</div><div style="margin-top:8px">סרטון הסבר קצר יופיע כאן.</div>
+     <div class="hint">הגדירו <code>VIDEO_URL</code> בראש index.html כדי להציג אותו.</div></div>`;
 
 async function api(path, opts){
   const r = await fetch(API_BASE+path, opts);
-  const d = await r.json().catch(()=>({error:"Bad response from server"}));
-  if (!r.ok) throw new Error(d.error || ("HTTP "+r.status));
+  const d = await r.json().catch(()=>({error:"תשובה לא תקינה מהשרת"}));
+  if (!r.ok) throw new Error(d.error || ("שגיאה HTTP "+r.status));
   return d;
 }
 async function getCourse(){ if(!COURSE){ try{ COURSE = await api("/api/course"); }catch(e){} } return COURSE; }
@@ -176,10 +178,10 @@ async function doSubmit(){
   const link=document.getElementById("link").value.trim();
   const err=document.getElementById("submitErr");
   err.classList.add("hidden");
-  if(!name || !link){ err.textContent="Name and run link are required."; err.classList.remove("hidden"); return; }
-  if(API_BASE.includes("YOUR-WORKER")){ err.textContent="Set API_BASE at the top of index.html to your Worker URL."; err.classList.remove("hidden"); return; }
+  if(!name || !team || !link){ err.textContent="צריך למלא שם, צוות וקישור."; err.classList.remove("hidden"); return; }
+  if(API_BASE.includes("YOUR-WORKER")){ err.textContent="הגדירו את API_BASE בראש index.html לכתובת ה-Worker."; err.classList.remove("hidden"); return; }
   const btn=document.getElementById("checkBtn");
-  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Checking…';
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>בודק…';
   try{
     const run = await api("/api/submit", {method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({name,team,link})});
@@ -188,7 +190,7 @@ async function doSubmit(){
   }catch(e){
     err.textContent=e.message; err.classList.remove("hidden");
   }finally{
-    btn.disabled=false; btn.textContent="Check my run";
+    btn.disabled=false; btn.textContent="בדקו את הריצה";
   }
 }
 
@@ -196,29 +198,29 @@ async function renderResult(run){
   await getCourse();
   const v = document.getElementById("view-result");
   const head = `<h1 style="margin-bottom:2px">${esc(run.name)}${run.team?` <span class="muted" style="font-weight:600">· ${esc(run.team)}</span>`:""}</h1>
-    <div class="meta">${run.athlete?`<span>Athlete: <b>${esc(run.athlete)}</b></span>`:""}
-      ${run.activity?`<span>Activity: <b>${esc(run.activity)}</b></span>`:""}
-      <span>Points: <b>${run.points}</b></span></div>`;
+    <div class="meta">${run.athlete?`<span>ספורטאי: <b>${esc(run.athlete)}</b></span>`:""}
+      ${run.activity?`<span>פעילות: <b>${esc(run.activity)}</b></span>`:""}
+      <span>נקודות: <b>${run.points}</b></span></div>`;
   let body;
   if(run.valid){
-    body = `<div class="verdict ok"><span class="tag">✓ VALID</span><span class="muted">— start → middle → finish in order</span></div>
-      <div class="bigtime">${fmt(run.total_s)}<span class="u">final time</span></div>
+    body = `<div class="verdict ok"><span class="tag">✓ חוקי</span><span class="muted">— עבר התחלה, אמצע וסיום לפי הסדר</span></div>
+      <div class="bigtime">${fmt(run.total_s)}<span class="u">זמן סופי</span></div>
       <table class="kv">
-        <tr><td>Gate-to-gate (base)</td><td class="r">${fmt(run.base_s)}</td></tr>
-        <tr><td>Start adjustment (${run.d_start_m.toFixed(1)} m)</td><td class="r">+${fmt(run.add_start_s)}</td></tr>
-        <tr><td>Finish adjustment (${run.d_finish_m.toFixed(1)} m)</td><td class="r">+${fmt(run.add_finish_s)}</td></tr>
+        <tr><td>זמן חצייה-לחצייה (בסיס)</td><td class="r">${fmt(run.base_s)}</td></tr>
+        <tr><td>תוספת התחלה (${run.d_start_m.toFixed(1)} מ')</td><td class="r">+${fmt(run.add_start_s)}</td></tr>
+        <tr><td>תוספת סיום (${run.d_finish_m.toFixed(1)} מ')</td><td class="r">+${fmt(run.add_finish_s)}</td></tr>
       </table>`;
   } else {
-    body = `<div class="verdict bad"><span class="tag">✗ INVALID</span><span class="muted">— ${esc(run.reason)}</span></div>
+    body = `<div class="verdict bad"><span class="tag">✗ לא חוקי</span><span class="muted">— ${esc(reasonHe(run.reason))}</span></div>
       <table class="kv">
-        <tr><td>Start/finish crossings</td><td class="r">${run.sf_crossings}</td></tr>
-        <tr><td>Middle crossings</td><td class="r">${run.mid_crossings}</td></tr></table>`;
+        <tr><td>חציות קו התחלה/סיום</td><td class="r">${run.sf_crossings}</td></tr>
+        <tr><td>חציות קו אמצע</td><td class="r">${run.mid_crossings}</td></tr></table>`;
   }
   const btns = `<div id="map"></div>
     <div class="btnrow">
-      <a class="btn" href="${API_BASE}/api/gpx/${run.id}">Download GPX</a>
-      <a class="btn ghost" onclick="go('submit')">Submit another</a>
-      <a class="btn ghost" onclick="openRuns()">All runs</a></div>`;
+      <a class="btn" href="${API_BASE}/api/gpx/${run.id}">הורדת GPX</a>
+      <a class="btn ghost" onclick="go('submit')">שליחת ריצה נוספת</a>
+      <a class="btn ghost" onclick="openRuns()">כל הריצות</a></div>`;
   v.innerHTML = head + body + btns;
   drawMap(run);
 }
@@ -230,9 +232,9 @@ function drawMap(run){
   const line = L.polyline(run.track.map(p=>[p[0],p[1]]),{color:"#FC4C02",weight:4,opacity:.9}).addTo(map);
   map.fitBounds(line.getBounds().pad(0.15));
   if(COURSE){
-    L.polyline([COURSE.sf[0],COURSE.sf[1]],{color:"#1E9E5A",weight:4}).addTo(map).bindTooltip("Start / finish");
-    L.polyline([COURSE.mid[0],COURSE.mid[1]],{color:"#4c9ffe",weight:4}).addTo(map).bindTooltip("Middle");
-    L.circleMarker(COURSE.p,{radius:6,color:"#242428",fillColor:"#fff",fillOpacity:1}).addTo(map).bindTooltip("Start point");
+    L.polyline([COURSE.sf[0],COURSE.sf[1]],{color:"#1E9E5A",weight:4}).addTo(map).bindTooltip("התחלה / סיום");
+    L.polyline([COURSE.mid[0],COURSE.mid[1]],{color:"#4c9ffe",weight:4}).addTo(map).bindTooltip("אמצע");
+    L.circleMarker(COURSE.p,{radius:6,color:"#242428",fillColor:"#fff",fillOpacity:1}).addTo(map).bindTooltip("נקודת התחלה");
   }
   if(run.valid){
     L.circleMarker([run.start.lat,run.start.lon],{radius:6,color:"#1E9E5A",fillColor:"#1E9E5A",fillOpacity:1}).addTo(map);
@@ -244,22 +246,22 @@ function drawMap(run){
 async function openRuns(){
   go("runs");
   const v=document.getElementById("view-runs");
-  v.innerHTML = `<h1>Saved runs</h1><p class="lead muted">Loading…</p>`;
+  v.innerHTML = `<h1>ריצות שמורות</h1><p class="lead muted">טוען…</p>`;
   try{
     const rows = await api("/api/runs");
-    if(!rows.length){ v.innerHTML = `<h1>Saved runs</h1><p class="muted">No runs yet. <a onclick="go('privacy')">Add the first one →</a></p>`; return; }
+    if(!rows.length){ v.innerHTML = `<h1>ריצות שמורות</h1><p class="muted">אין עדיין ריצות. <a onclick="go('privacy')">הוסיפו את הראשונה →</a></p>`; return; }
     const body = rows.map((r,i)=>`<tr>
       <td>${i+1}</td><td><b>${esc(r.name)}</b></td><td class="muted">${esc(r.team)||"—"}</td>
       <td class="muted">${esc(r.athlete)||"—"}</td>
       <td class="time">${r.valid?fmt(r.total_s):"—"}</td>
-      <td>${r.valid?'<span class="badge ok">valid</span>':'<span class="badge bad">invalid</span>'}</td>
+      <td>${r.valid?'<span class="badge ok">חוקי</span>':'<span class="badge bad">לא חוקי</span>'}</td>
       <td class="muted">${(r.created||"").slice(0,10)}</td>
-      <td><a onclick="openRun(${r.id})">view</a></td></tr>`).join("");
-    v.innerHTML = `<h1>Saved runs</h1><p class="lead">Fastest first.</p>
-      <table class="runs"><thead><tr><th>#</th><th>Name</th><th>Team</th><th>Athlete</th><th>Time</th><th>Status</th><th>When</th><th></th></tr></thead>
+      <td><a onclick="openRun(${r.id})">צפייה</a></td></tr>`).join("");
+    v.innerHTML = `<h1>ריצות שמורות</h1><p class="lead">המהיר ביותר קודם.</p>
+      <table class="runs"><thead><tr><th>#</th><th>שם</th><th>צוות</th><th>ספורטאי</th><th>זמן</th><th>סטטוס</th><th>מתי</th><th></th></tr></thead>
       <tbody>${body}</tbody></table>`;
   }catch(e){
-    v.innerHTML = `<h1>Saved runs</h1><div class="alert err">${esc(e.message)}</div>`;
+    v.innerHTML = `<h1>ריצות שמורות</h1><div class="alert err">${esc(e.message)}</div>`;
   }
 }
 async function openRun(id){
