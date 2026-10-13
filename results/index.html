@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>תוצאות</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--orange:#FC4C02;--orange-dark:#E34402;--ink:#242428;--muted:#6D6D78;--bg:#F5F5F7;
+  --card:#fff;--line:#E7E7EC;--ok:#1E9E5A;--bad:#E0392B;--shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.05)}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:'Heebo',system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+.top{background:var(--orange);color:#fff}
+.top .wrap{max-width:1000px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+.wrap{max-width:1000px;margin:0 auto;padding:20px 20px 56px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
+.card+.card{margin-top:16px}
+h1{font-size:22px;font-weight:800;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+#map{height:380px;border-radius:12px;border:1px solid var(--line)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 2px;align-items:center}
+.btn{background:var(--orange);color:#fff;border:0;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn:hover{background:var(--orange-dark)}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{background:#F2F2F6}
+.btn[disabled]{opacity:.6;cursor:default}
+.stat{color:var(--muted);font-size:13px;margin-inline-start:auto}
+.stat b{color:var(--ink)}
+table.runs{width:100%;border-collapse:collapse;font-size:14px}
+table.runs th,table.runs td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:right}
+table.runs th{font-size:12px;color:var(--muted);font-weight:700;position:sticky;top:0;background:var(--card)}
+table.runs td.time{font-weight:700;font-variant-numeric:tabular-nums;direction:ltr;text-align:right}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+.badge.ok{background:rgba(30,158,90,.12);color:var(--ok)}.badge.bad{background:rgba(224,57,43,.12);color:var(--bad)}
+.alert{padding:12px 14px;border-radius:10px;font-size:14px;border:1px solid;background:#FDECEA;border-color:#F5C2BC;color:#9B2117}
+.legend{font-size:12px;color:var(--muted);margin-top:10px;display:flex;gap:16px;flex-wrap:wrap}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px;vertical-align:middle}
+.handle{border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+label.chk{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#262b36;color:#fff;padding:10px 16px;border-radius:8px;opacity:0;transition:opacity .2s;font-size:13px;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="top"><div class="wrap">
+  <div class="brand">
+    <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 2 4 20l5-2 3 4 3-4 5 2L12 2z" fill="#fff"/></svg>
+    תוצאות
+  </div>
+</div></div>
+
+<div class="wrap">
+  <div class="card">
+    <h1>מסלול וחישוב</h1>
+    <p class="sub">גררו את קווי ההתחלה/סיום והאמצע ואת נקודת ההתחלה. התוצאות מחושבות מחדש אוטומטית.</p>
+    <div id="map"></div>
+    <div class="legend">
+      <span><span class="dot" style="background:#1E9E5A"></span>קו התחלה/סיום</span>
+      <span><span class="dot" style="background:#4c9ffe"></span>קו אמצע</span>
+      <span><span class="dot" style="background:#ffa63d"></span>נקודת התחלה</span>
+      <label class="chk"><input type="checkbox" id="showTracks" checked> הצג מסלולים</label>
+    </div>
+    <div class="toolbar">
+      <button class="btn" onclick="recompute()">חשב מחדש</button>
+      <button class="btn ghost" onclick="resetCourse()">אפס מסלול</button>
+      <button class="btn ghost" onclick="exportExcel()">הורד Excel</button>
+      <span class="stat" id="stat"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h1>דירוג</h1>
+    <div id="tableWrap"><p class="sub">טוען…</p></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = "https://kashag.yoav-aram-47.workers.dev";
+const FALLBACK_COURSE = {
+  sf:[[30.651421,34.794139],[30.651152,34.794359]],
+  mid:[[30.645876,34.780501],[30.645696,34.780584]],
+  p:[30.651378,34.794385]
+};
+
+let RUNS = [];      // full run objects (with .track = [[lat,lon,t],...])
+let COMPUTED = [];  // [{name,team,platoon,valid,total}]
+let map, sfA,sfB,midA,midB,startP, sfLine,midLine, trackLayer;
+
+// ───────── geometry (identical to the Worker / course_timer.py)
+const LAT0=30.65, KX=Math.cos(LAT0*Math.PI/180);
+const toXY=(lat,lon)=>[lon*KX,lat];
+function haversine(a,b){const R=6371000,toR=Math.PI/180;const dLat=(b[0]-a[0])*toR,dLon=(b[1]-a[1])*toR,la1=a[0]*toR,la2=b[0]*toR;const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;return 2*R*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
+function segIntersect(p1,p2,g1,g2){const P1=toXY(p1[0],p1[1]),P2=toXY(p2[0],p2[1]),G1=toXY(g1[0],g1[1]),G2=toXY(g2[0],g2[1]);const rx=P2[0]-P1[0],ry=P2[1]-P1[1],sx=G2[0]-G1[0],sy=G2[1]-G1[1];const den=rx*sy-ry*sx;if(Math.abs(den)<1e-15)return null;const qx=G1[0]-P1[0],qy=G1[1]-P1[1];const t=(qx*sy-qy*sx)/den,u=(qx*ry-qy*rx)/den;if(t<0||t>1||u<0||u>1)return null;return{frac:t,lat:p1[0]+t*(p2[0]-p1[0]),lon:p1[1]+t*(p2[1]-p1[1])};}
+function crossings(track,g1,g2){const out=[];for(let i=0;i<track.length-1;i++){const a=track[i],b=track[i+1];const hit=segIntersect([a[0],a[1]],[b[0],b[1]],g1,g2);if(!hit)continue;const dt=b[2]-a[2];const len=haversine([a[0],a[1]],[b[0],b[1]]);out.push({lat:hit.lat,lon:hit.lon,time:a[2]+hit.frac*dt,speed:dt>0?len/dt:0});}return out;}
+function analyze(track,sf,mid,p){
+  const s=crossings(track,sf[0],sf[1]),m=crossings(track,mid[0],mid[1]);
+  if(!s.length) return {valid:false};
+  const start=s[0];
+  const middle=m.find(x=>x.time>start.time); if(!middle) return {valid:false};
+  const finish=s.find(x=>x.time>middle.time); if(!finish) return {valid:false};
+  const base=finish.time-start.time;
+  const dS=haversine(p,[start.lat,start.lon]),dF=haversine([finish.lat,finish.lon],p);
+  const addS=start.speed>0?dS/start.speed:0,addF=finish.speed>0?dF/finish.speed:0;
+  return {valid:true,total:base+addS+addF};
+}
+
+function fmt(sec){
+  if(sec==null||!isFinite(sec)) return "--";
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+  return (h?h+":"+String(m).padStart(2,"0"):m)+":"+s.toFixed(1).padStart(4,"0");
+}
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ───────── map
+function handleIcon(color){return L.divIcon({className:"",iconSize:[16,16],iconAnchor:[8,8],html:`<div class="handle" style="width:16px;height:16px;background:${color}"></div>`});}
+function mk(ll,color){return L.marker(ll,{icon:handleIcon(color),draggable:true}).addTo(map);}
+function ll(m){const p=m.getLatLng();return [p.lat,p.lng];}
+function course(){return {sf:[ll(sfA),ll(sfB)], mid:[ll(midA),ll(midB)], p:ll(startP)};}
+function redrawLines(){sfLine.setLatLngs([ll(sfA),ll(sfB)]);midLine.setLatLngs([ll(midA),ll(midB)]);}
+
+function buildMap(c){
+  map=L.map("map");
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+  trackLayer=L.layerGroup().addTo(map);
+  sfA=mk(c.sf[0],"#1E9E5A"); sfB=mk(c.sf[1],"#1E9E5A");
+  midA=mk(c.mid[0],"#4c9ffe"); midB=mk(c.mid[1],"#4c9ffe");
+  startP=mk(c.p,"#ffa63d");
+  sfLine=L.polyline([c.sf[0],c.sf[1]],{color:"#1E9E5A",weight:4}).addTo(map);
+  midLine=L.polyline([c.mid[0],c.mid[1]],{color:"#4c9ffe",weight:4}).addTo(map);
+  [sfA,sfB,midA,midB,startP].forEach(m=>{m.on("drag",redrawLines);m.on("dragend",recompute);});
+  map.setView(c.p,15);
+}
+function setCourse(c){
+  sfA.setLatLng(c.sf[0]);sfB.setLatLng(c.sf[1]);midA.setLatLng(c.mid[0]);midB.setLatLng(c.mid[1]);startP.setLatLng(c.p);
+  redrawLines();
+}
+function drawTracks(){
+  trackLayer.clearLayers();
+  if(!document.getElementById("showTracks").checked) return;
+  for(const r of RUNS){
+    if(!r.track||!r.track.length) continue;
+    L.polyline(r.track.map(p=>[p[0],p[1]]),{color:"#FC4C02",weight:1.5,opacity:.35}).addTo(trackLayer);
+  }
+}
+
+// ───────── compute + render
+function recompute(){
+  const c=course();
+  COMPUTED=RUNS.map(r=>{
+    const a=analyze(r.track||[],c.sf,c.mid,c.p);
+    return {name:r.name,team:r.team,platoon:r.platoon||"",valid:a.valid,total:a.valid?a.total:null};
+  });
+  COMPUTED.sort((x,y)=>{
+    if(x.valid!==y.valid) return x.valid?-1:1;
+    if(x.total==null) return 1; if(y.total==null) return -1;
+    return x.total-y.total;
+  });
+  renderTable();
+  const valid=COMPUTED.filter(r=>r.valid).length;
+  document.getElementById("stat").innerHTML=`<b>${COMPUTED.length}</b> ריצות · <b>${valid}</b> חוקיות`;
+}
+function renderTable(){
+  const w=document.getElementById("tableWrap");
+  if(!COMPUTED.length){w.innerHTML=`<p class="sub">אין עדיין ריצות.</p>`;return;}
+  const rows=COMPUTED.map((r,i)=>`<tr>
+    <td>${r.valid?i+1:"—"}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.team)}</td><td>${esc(r.platoon)}</td>
+    <td class="time">${r.valid?fmt(r.total):"—"}</td>
+    <td>${r.valid?'<span class="badge ok">חוקי</span>':'<span class="badge bad">לא חוקי</span>'}</td></tr>`).join("");
+  w.innerHTML=`<table class="runs"><thead><tr><th>#</th><th>שם</th><th>צוות</th><th>פלוגה</th><th>זמן</th><th>סטטוס</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function exportExcel(){
+  if(!COMPUTED.length){toast("אין נתונים לייצוא");return;}
+  const data=COMPUTED.map(r=>({"שם":r.name,"צוות":r.team,"פלוגה":r.platoon,"זמן":r.valid?fmt(r.total):"לא חוקי"}));
+  const ws=XLSX.utils.json_to_sheet(data,{header:["שם","צוות","פלוגה","זמן"]});
+  ws["!cols"]=[{wch:18},{wch:14},{wch:14},{wch:12}];
+  const wb=XLSX.utils.book_new();
+  wb.Workbook={Views:[{RTL:true}]};
+  XLSX.utils.book_append_sheet(wb,ws,"תוצאות");
+  XLSX.writeFile(wb,"results.xlsx");
+}
+
+function resetCourse(){ setCourse(DEFAULT_COURSE); recompute(); toast("המסלול אופס"); }
+
+let toastT;
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1800);}
+
+async function api(path){
+  const r=await fetch(API_BASE+path);
+  const d=await r.json().catch(()=>({error:"תשובה לא תקינה מהשרת"}));
+  if(!r.ok) throw new Error(d.error||("שגיאה HTTP "+r.status));
+  return d;
+}
+
+let DEFAULT_COURSE=FALLBACK_COURSE;
+(async function init(){
+  try{ DEFAULT_COURSE=await api("/api/course"); }catch(e){}
+  buildMap(DEFAULT_COURSE);
+  document.getElementById("showTracks").addEventListener("change",drawTracks);
+  try{
+    RUNS=await api("/api/runs?full=1");
+    drawTracks();
+    recompute();
+  }catch(e){
+    document.getElementById("tableWrap").innerHTML=`<div class="alert">${esc(e.message)}</div>`;
+  }
+})();
+</script>
+</body>
+</html>
