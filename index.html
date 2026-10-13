@@ -105,6 +105,7 @@ footer{max-width:900px;margin:0 auto;padding:10px 20px 40px;color:var(--muted);f
     <div id="submitErr" class="alert err hidden"></div>
     <div class="field"><label for="name">שם</label><input id="name" type="text" placeholder="השם שלך"></div>
     <div class="field"><label for="team">צוות</label><input id="team" type="text" placeholder="הצוות שלך"></div>
+    <div class="field"><label for="platoon">פלוגה</label><input id="platoon" type="text" placeholder="הפלוגה שלך"></div>
     <div class="field"><label for="link">קישור לריצה בסטרבה</label>
       <input id="link" type="url" dir="ltr" placeholder="https://strava.app.link/…">
       <div class="hint">עובד עם קישורי אפליקציה <span class="ltr">(strava.app.link/…)</span> וגם עם קישורים רגילים.</div></div>
@@ -174,16 +175,17 @@ async function getCourse(){ if(!COURSE){ try{ COURSE = await api("/api/course");
 async function doSubmit(){
   const name=document.getElementById("name").value.trim();
   const team=document.getElementById("team").value.trim();
+  const platoon=document.getElementById("platoon").value.trim();
   const link=document.getElementById("link").value.trim();
   const err=document.getElementById("submitErr");
   err.classList.add("hidden");
-  if(!name || !team || !link){ err.textContent="צריך למלא שם, צוות וקישור."; err.classList.remove("hidden"); return; }
+  if(!name || !team || !platoon || !link){ err.textContent="צריך למלא שם, צוות, פלוגה וקישור."; err.classList.remove("hidden"); return; }
   if(API_BASE.includes("YOUR-WORKER")){ err.textContent="הגדירו את API_BASE בראש index.html לכתובת ה-Worker."; err.classList.remove("hidden"); return; }
   const btn=document.getElementById("checkBtn");
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>בודק…';
   try{
     const run = await api("/api/submit", {method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({name,team,link})});
+      body: JSON.stringify({name,team,platoon,link})});
     await renderResult(run);
     go("result");
   }catch(e){
@@ -206,50 +208,6 @@ function renderResult(run){
         <a class="btn block" onclick="go('submit')">שליחת ריצה נוספת</a>
       </div>
     </div>`;
-}
-
-function drawMap(run){
-  if(map){ map.remove(); map=null; }
-  map = L.map("map");
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
-  const line = L.polyline(run.track.map(p=>[p[0],p[1]]),{color:"#FC4C02",weight:4,opacity:.9}).addTo(map);
-  map.fitBounds(line.getBounds().pad(0.15));
-  if(COURSE){
-    L.polyline([COURSE.sf[0],COURSE.sf[1]],{color:"#1E9E5A",weight:4}).addTo(map).bindTooltip("התחלה / סיום");
-    L.polyline([COURSE.mid[0],COURSE.mid[1]],{color:"#4c9ffe",weight:4}).addTo(map).bindTooltip("אמצע");
-    L.circleMarker(COURSE.p,{radius:6,color:"#242428",fillColor:"#fff",fillOpacity:1}).addTo(map).bindTooltip("נקודת התחלה");
-  }
-  if(run.valid){
-    L.circleMarker([run.start.lat,run.start.lon],{radius:6,color:"#1E9E5A",fillColor:"#1E9E5A",fillOpacity:1}).addTo(map);
-    L.circleMarker([run.finish.lat,run.finish.lon],{radius:6,color:"#E0392B",fillColor:"#E0392B",fillOpacity:1}).addTo(map);
-  }
-  setTimeout(()=>map.invalidateSize(), 50);
-}
-
-async function openRuns(){
-  go("runs");
-  const v=document.getElementById("view-runs");
-  v.innerHTML = `<h1>ריצות שמורות</h1><p class="lead muted">טוען…</p>`;
-  try{
-    const rows = await api("/api/runs");
-    if(!rows.length){ v.innerHTML = `<h1>ריצות שמורות</h1><p class="muted">אין עדיין ריצות. <a onclick="go('privacy')">הוסיפו את הראשונה →</a></p>`; return; }
-    const body = rows.map((r,i)=>`<tr>
-      <td>${i+1}</td><td><b>${esc(r.name)}</b></td><td class="muted">${esc(r.team)||"—"}</td>
-      <td class="muted">${esc(r.athlete)||"—"}</td>
-      <td class="time">${r.valid?fmt(r.total_s):"—"}</td>
-      <td>${r.valid?'<span class="badge ok">חוקי</span>':'<span class="badge bad">לא חוקי</span>'}</td>
-      <td class="muted">${(r.created||"").slice(0,10)}</td>
-      <td><a onclick="openRun(${r.id})">צפייה</a></td></tr>`).join("");
-    v.innerHTML = `<h1>ריצות שמורות</h1><p class="lead">המהיר ביותר קודם.</p>
-      <table class="runs"><thead><tr><th>#</th><th>שם</th><th>צוות</th><th>ספורטאי</th><th>זמן</th><th>סטטוס</th><th>מתי</th><th></th></tr></thead>
-      <tbody>${body}</tbody></table>`;
-  }catch(e){
-    v.innerHTML = `<h1>ריצות שמורות</h1><div class="alert err">${esc(e.message)}</div>`;
-  }
-}
-async function openRun(id){
-  try{ const run = await api("/api/run/"+id); await renderResult(run); go("result"); }
-  catch(e){ alert(e.message); }
 }
 
 go("privacy");
